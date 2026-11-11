@@ -1,0 +1,31 @@
+{
+  "name": "nilave-mern",
+  "version": "1.0.0",
+  "description": "Nilavi Aesthetics & Beauty Studio - Full MERN Webpage & CRM",
+  "type": "module",
+  "private": true,
+  "workspaces": [
+    "client",
+    "server"
+  ],
+  "scripts": {
+    "install:server": "npm --prefix server install",
+    "install:client": "npm --prefix client install",
+    "install:all": "npm run install:server && npm run install:client",
+    "postinstall": "npm run install:all",
+    "server": "npm --prefix server run dev",
+    "client": "npm --prefix client run dev",
+    "dev": "npm --prefix client run dev",
+    "start": "node server/server.js",
+    "build": "npm --prefix client run build",
+    "build:client": "npm --prefix client run build"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "mongoose": "^8.9.5"
+  },
+  "keywords": ["mern", "nilavi", "crm", "beauty-studio"]
+}
+
