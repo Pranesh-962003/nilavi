@@ -1,44 +1,45 @@
-import { dbStore } from '../config/db.js';
+import Customer from '../models/customer.js';
+import Booking from '../models/booking.js';
+import Inquiry from '../models/inquiry.js';
 import { localDateStr, normalizePhone } from '../utils/helpers.js';
 
-const samePerson = (customer, phone) => normalizePhone(customer.phone) === phone;
-
-export function findCustomerByPhone(phone) {
+export async function findCustomerByPhone(phone) {
   const key = normalizePhone(phone);
   if (!key) return null;
-  return dbStore.getCollection('crmCustomers').find(c => samePerson(c, key)) || null;
+  return await Customer.findOne({ phone: key }).lean();
 }
 
 // Create the client record the first time we see a phone number, otherwise fill in
 // anything we learn later (email, a proper name). Visit and spend figures are never
 // stored here: they are always calculated from the bookings themselves.
-export function upsertCustomer({ name, phone, email, notes, tag }) {
+export async function upsertCustomer({ name, phone, email, notes, tag }) {
   const key = normalizePhone(phone);
   if (!key) return null;
 
-  const existing = findCustomerByPhone(key);
+  const existing = await Customer.findOne({ phone: key });
   if (existing) {
-    const updates = {};
-    if (email && !existing.email) updates.email = email;
-    if (name && !existing.name) updates.name = name;
-    if (Object.keys(updates).length > 0) {
-      return dbStore.update('crmCustomers', existing.id, updates);
-    }
-    return existing;
+    if (email && !existing.email) existing.email = email;
+    if (name && (!existing.name || existing.name === 'Unnamed client')) existing.name = name;
+    await existing.save();
+    return existing.toObject ? existing.toObject() : existing;
   }
 
-  return dbStore.insert('crmCustomers', {
+  const id = `cust-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+  const created = await Customer.create({
+    id,
     name: name || 'Unnamed client',
     phone: key,
     email: email || '',
     tags: [tag || 'New Client'],
     notes: notes || ''
   });
+
+  return created.toObject ? created.toObject() : created;
 }
 
 function bookingsFor(customer, bookings) {
   const key = normalizePhone(customer.phone);
-  return bookings
+  return (bookings || [])
     .filter(b => key && normalizePhone(b.customerPhone) === key)
     .sort((a, b) => `${b.date} ${b.createdAt}`.localeCompare(`${a.date} ${a.createdAt}`));
 }
@@ -85,12 +86,13 @@ export function withStats(customer, bookings, today) {
 }
 
 // Full profile: client record + stats + their bookings and enquiries
-export function customerProfile(customer) {
-  const bookings = dbStore.find('bookings');
+export async function customerProfile(customer) {
+  const bookings = await Booking.find().lean();
   const key = normalizePhone(customer.phone);
   const email = (customer.email || '').toLowerCase();
 
-  const inquiries = dbStore.find('inquiries')
+  const allInquiries = await Inquiry.find().lean();
+  const inquiries = allInquiries
     .filter(i => (key && normalizePhone(i.phone) === key) || (email && (i.email || '').toLowerCase() === email))
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 

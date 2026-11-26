@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import WhatsAppIcon from '../components/WhatsAppIcon';
 import { serviceEnquiryMessage, waLink } from '../lib/whatsapp';
 import {
@@ -13,164 +13,109 @@ import {
   Filter
 } from 'lucide-react';
 
-export default function ServicesPage({ onNavigate, servicesImages = {}, defaultSelectedCategory = 'all', whatsappNumber = '919999999999' }) {
+export default function ServicesPage({ onNavigate, servicesImages = {}, serviceCategories: propServiceCategories = [], defaultSelectedCategory = 'all', whatsappNumber = import.meta.env.VITE_WHATSAPP_NUMBER || '916383643060' }) {
   const [selectedCategory, setSelectedCategory] = useState(defaultSelectedCategory);
-  const [expandedServiceId, setExpandedServiceId] = useState('facial');
+  const [expandedServiceId, setExpandedServiceId] = useState(null);
   const [servicesData, setServicesData] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [categoriesList, setCategoriesList] = useState(
+    Array.isArray(propServiceCategories) ? propServiceCategories : []
+  );
 
-  // Fallback / default services catalog
-  const defaultServices = [
-    {
-      id: 'facial',
-      category: 'skin',
-      categoryName: 'Skin Care',
-      name: 'Signature Botanical Facial',
-      dur: '60 min',
-      price: 1800,
-      image: servicesImages.facial || 'https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?auto=format&fit=crop&w=1000&q=85',
-      shortDesc: 'Deep cleansing, botanical enzyme exfoliation, and targeted hydration designed after a clinical skin evaluation.',
-      benefits: [
-        'Gentle micro-exfoliation to reveal skin radiance',
-        'Deep pore unclogging with botanical steam & light extractions',
-        'Hydrating algae collagen infusion mask',
-        'Relaxing neck, shoulder and facial acupressure massage'
-      ],
-      idealFor: 'Dullness, uneven texture, dehydration, and seasonal fatigue.'
-    },
-    {
-      id: 'hydra',
-      category: 'skin',
-      categoryName: 'Skin Care',
-      name: 'Hydra Glow & Oxygen Revival',
-      dur: '75 min',
-      price: 2800,
-      image: 'https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?auto=format&fit=crop&w=1000&q=85',
-      shortDesc: 'Advanced vortex suction and concentrated hyaluronic acid infusion to quench, plump, and deeply clarify the skin.',
-      benefits: [
-        'Vacuum vortex extraction of impurities and blackheads',
-        'Multi-molecular weight hyaluronic serum infusion',
-        'Calming cryo-globe lymphatic drainage massage',
-        'Immediate dewy, camera-ready luminosity with zero downtime'
-      ],
-      idealFor: 'Congested pores, fine lines, tired skin, and pre-event glow.'
-    },
-    {
-      id: 'hair',
-      category: 'hair',
-      categoryName: 'Hair Care',
-      name: 'Restorative Hair Spa & Luminous Style',
-      dur: '90 min',
-      price: 1500,
-      image: servicesImages.hair || 'https://images.unsplash.com/photo-1560869713-7d0a29430803?auto=format&fit=crop&w=1000&q=85',
-      shortDesc: 'Deep nourishment for tired scalp and hair shafts using nutrient-dense masks, ozone steam, and a custom blowout.',
-      benefits: [
-        'Aromatherapy scalp massage to stimulate blood flow',
-        'Deep conditioning argan and keratin fiber repair mask',
-        'Warm ozone steam infusion for moisture penetration',
-        'Polished salon blow-dry and long-lasting heat style'
-      ],
-      idealFor: 'Dry, heat-damaged or chemically treated hair seeking bounce and shine.'
-    },
-    {
-      id: 'nails',
-      category: 'nails',
-      categoryName: 'Nail Artistry',
-      name: 'Luxury Gel Manicure & Hand Therapy',
-      dur: '60 min',
-      price: 900,
-      image: servicesImages.nails || 'https://images.unsplash.com/photo-1632345031435-8727f6897d53?auto=format&fit=crop&w=1000&q=85',
-      shortDesc: 'Comprehensive cuticle care, nail shaping, hand massage with botanical oils, and chip-resistant gel polish application.',
-      benefits: [
-        'Gentle cuticle softening and precision nail contouring',
-        'Exfoliating rose sugar hand scrub',
-        'Warm botanical balm hand and arm massage',
-        'High-gloss, chip-resistant LED gel polish lasting 3+ weeks'
-      ],
-      idealFor: 'Brittle nails, dry cuticles, or anyone looking for durable, elegant nails.'
-    },
-    {
-      id: 'bridal',
-      category: 'bridal',
-      categoryName: 'Bridal Artistry',
-      name: 'Bespoke Bridal Makeup Trial & Draping',
-      dur: '120 min',
-      price: 3500,
-      image: servicesImages.bridal || 'https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?auto=format&fit=crop&w=1000&q=85',
-      shortDesc: 'Personalized bridal consultation, complete look trial, skin tone balancing, and saree/dupatta draping arrangement.',
-      benefits: [
-        'Comprehensive review of your wedding trousseau and jewellery',
-        'Full HD makeup trial with professional shade matching',
-        'Custom false lash placement and waterproofing test',
-        'Pre-wedding skincare schedule planned up to the wedding week'
-      ],
-      idealFor: 'Brides-to-be planning wedding, reception, or muhurtham ceremonies.'
-    },
-    {
-      id: 'wax',
-      category: 'wellness',
-      categoryName: 'Wellness & Waxing',
-      name: 'Gentle Waxing & Calming Body Wellness',
-      dur: '30 min',
-      price: 300,
-      image: servicesImages.wax || 'https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&w=1000&q=85',
-      shortDesc: 'Hygienic, gentle hair removal and threading using sensitive skin waxes followed by cooling organic aloe vera.',
-      benefits: [
-        'Low-temperature hypoallergenic wax formulated for sensitive skin',
-        'Single-use sterilized applicators and fresh clean sheets',
-        'Pre-wax skin barrier protection and gentle technique',
-        'Post-treatment cooling chamomile and aloe vera balm'
-      ],
-      idealFor: 'Clean, smooth skin with minimal discomfort and redness.'
+  // Sync / fetch database categories
+  useEffect(() => {
+    if (Array.isArray(propServiceCategories) && propServiceCategories.length > 0) {
+      setCategoriesList(propServiceCategories);
+    } else {
+      fetch('/api/settings')
+        .then(r => r.json())
+        .then(res => {
+          if (res.success && Array.isArray(res.data?.serviceCategories)) {
+            setCategoriesList(res.data.serviceCategories);
+          }
+        })
+        .catch(() => {});
     }
-  ];
+  }, [propServiceCategories]);
 
-  // Fetch dynamic services if available from API
+  // Dynamic services from database
   useEffect(() => {
     fetch('/api/services')
       .then(r => r.json())
       .then(res => {
-        if (res.success && res.data && res.data.length > 0) {
-          // Merge API data with detailed fallback descriptions & images
-          const merged = res.data.map(apiSvc => {
-            const fallback = defaultServices.find(d => d.id === apiSvc.id) || {};
+        if (res.success && Array.isArray(res.data)) {
+          const mapped = res.data.map(apiSvc => {
+            const catObj = (categoriesList || []).find(
+              c => c.id === apiSvc.category ||
+                   c.id?.toLowerCase() === (apiSvc.category || '').toLowerCase() ||
+                   c.name?.toLowerCase() === (apiSvc.category || '').toLowerCase()
+            );
+
+            const catImage = catObj?.image ||
+                             servicesImages[apiSvc.category] ||
+                             servicesImages[(apiSvc.category || '').toLowerCase()] ||
+                             'https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&w=1000&q=85';
+
+            const resolvedImage = apiSvc.image || catImage;
+
             return {
-              ...fallback,
               ...apiSvc,
-              image: apiSvc.image || fallback.image || defaultServices[0].image,
-              benefits: fallback.benefits || [
+              categoryName: catObj ? catObj.name : (apiSvc.category || 'Treatment'),
+              image: resolvedImage,
+              benefits: apiSvc.benefits || [
                 'Expert consultation with a certified studio aesthetician',
                 'Customized formulation based on skin/hair analysis',
                 'Premium hypoallergenic salon-grade products',
                 'Dedicated aftercare recommendations'
               ],
-              shortDesc: apiSvc.description || fallback.shortDesc
+              shortDesc: apiSvc.description || 'Gentle, personalized treatment planned around your goals.'
             };
           });
-          setServicesData(merged);
+          setServicesData(mapped);
         } else {
-          setServicesData(defaultServices);
+          setServicesData([]);
         }
       })
       .catch(() => {
-        setServicesData(defaultServices);
+        setServicesData([]);
       })
       .finally(() => setLoading(false));
-  }, []);
+  }, [categoriesList, servicesImages]);
 
-  const categories = [
-    { id: 'all', label: 'All Treatments' },
-    { id: 'skin', label: 'Skin Care' },
-    { id: 'hair', label: 'Hair Care' },
-    { id: 'nails', label: 'Nail Artistry' },
-    { id: 'bridal', label: 'Bridal Makeup' },
-    { id: 'wellness', label: 'Wellness & Waxing' }
-  ];
+  // STRICTLY database stored categories only — no synthetic, discovered, or mock categories
+  const categories = useMemo(() => {
+    const list = (Array.isArray(categoriesList) && categoriesList.length > 0)
+      ? categoriesList.map(c => ({ id: c.id, label: c.name }))
+      : [];
 
-  const filteredServices = servicesData.filter(s => {
-    if (selectedCategory === 'all') return true;
-    return (s.category || '').toLowerCase() === selectedCategory.toLowerCase();
-  });
+    return [
+      { id: 'all', label: 'All Treatments' },
+      ...list
+    ];
+  }, [categoriesList]);
+
+  const validCategoryIds = useMemo(() => {
+    const set = new Set();
+    (categoriesList || []).forEach(c => {
+      if (c.id) set.add(c.id.toLowerCase().trim());
+      if (c.name) set.add(c.name.toLowerCase().trim());
+    });
+    return set;
+  }, [categoriesList]);
+
+  const filteredServices = useMemo(() => {
+    return servicesData.filter(s => {
+      const sCat = (s.category || '').toLowerCase().trim();
+      // If we have categories defined in DB, only show services belonging to valid categories
+      if (validCategoryIds.size > 0 && !validCategoryIds.has(sCat)) {
+        return false;
+      }
+      if (selectedCategory === 'all') return true;
+      const filterKey = selectedCategory.toLowerCase().trim();
+      const catObj = categories.find(c => c.id?.toLowerCase() === filterKey || c.label?.toLowerCase() === filterKey);
+      return sCat === filterKey || (catObj && (sCat === catObj.id?.toLowerCase() || sCat === catObj.label?.toLowerCase()));
+    });
+  }, [servicesData, selectedCategory, categories, validCategoryIds]);
 
   const toggleAccordion = (id) => {
     setExpandedServiceId(prev => (prev === id ? null : id));
@@ -244,51 +189,61 @@ export default function ServicesPage({ onNavigate, servicesImages = {}, defaultS
           {/* Vertical Accordion List */}
           <div className="vertical-accordion-container" role="region" aria-label="Treatments accordion">
             {filteredServices.map(svc => {
-              const isExpanded = expandedServiceId === svc.id;
-              return (
-                <div
-                  key={svc.id}
-                  className={`vertical-accordion-item ${isExpanded ? 'is-expanded' : ''}`}
-                >
-                  {/* Collapsed Header / Accordion Trigger */}
-                  <button
-                    className="accordion-header-btn"
-                    onClick={() => toggleAccordion(svc.id)}
-                    aria-expanded={isExpanded}
-                    aria-controls={`svc-details-${svc.id}`}
+                const isExpanded = expandedServiceId === svc.id;
+                return (
+                  <div
+                    key={svc.id}
+                    className={`vertical-accordion-item ${isExpanded ? 'is-expanded' : ''}`}
                   >
-                    <div className="accordion-title-group">
-                      <span className="accordion-category-badge">{svc.categoryName || svc.category}</span>
-                      <h3 className="accordion-service-name">{svc.name}</h3>
-                    </div>
+                    {/* Collapsed Header / Accordion Trigger */}
+                    <button
+                      className="accordion-header-btn"
+                      onClick={() => toggleAccordion(svc.id)}
+                      aria-expanded={isExpanded}
+                      aria-controls={`svc-details-${svc.id}`}
+                    >
+                      <div className="accordion-title-group">
+                        <span className="accordion-category-badge">{svc.categoryName || svc.category}</span>
+                        <h3 className="accordion-service-name">{svc.name}</h3>
+                      </div>
 
-                    <div className="accordion-meta-group">
-                      <div className="accordion-timing">
-                        <Clock size={14} />
-                        <span>{svc.dur}</span>
+                      <div className="accordion-meta-group">
+                        <div className="accordion-timing">
+                          <Clock size={14} />
+                          <span>{svc.dur}</span>
+                        </div>
+                        <div className="accordion-price">
+                          <small>starting at</small>
+                          <b>{fmtCurrency(svc.price)}</b>
+                        </div>
+                        <div className="accordion-chevron-icon" aria-hidden="true">
+                          {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                        </div>
                       </div>
-                      <div className="accordion-price">
-                        <small>starting at</small>
-                        <b>{fmtCurrency(svc.price)}</b>
-                      </div>
-                      <div className="accordion-chevron-icon" aria-hidden="true">
-                        {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
-                      </div>
-                    </div>
-                  </button>
+                    </button>
 
-                  {/* Expanded Accordion Body */}
-                  {isExpanded && (
-                    <div className="accordion-expanded-body" id={`svc-details-${svc.id}`}>
-                      <div className="expanded-grid">
-                        {/* Service Photo */}
-                        <div className="expanded-image-wrap">
-                          <img
-                            src={svc.image}
-                            alt={svc.name}
-                            className="expanded-photo"
-                            loading="lazy"
-                          />
+                    {/* Expanded Accordion Body */}
+                    {isExpanded && (
+                      <div className="accordion-expanded-body" id={`svc-details-${svc.id}`}>
+                        <div className="expanded-grid">
+                          {/* Service Photo */}
+                          <div className="expanded-image-wrap">
+                            <img
+                              src={
+                                svc.image ||
+                                (serviceCategories || []).find(
+                                  c => c.id === svc.category ||
+                                       c.id?.toLowerCase() === (svc.category || '').toLowerCase() ||
+                                       c.name?.toLowerCase() === (svc.category || '').toLowerCase()
+                                )?.image ||
+                                servicesImages[svc.category] ||
+                                servicesImages[(svc.category || '').toLowerCase()] ||
+                                'https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&w=1000&q=85'
+                              }
+                              alt={svc.name}
+                              className="expanded-photo"
+                              loading="lazy"
+                            />
                           <div className="expanded-image-badge">
                             <Sparkles size={13} />
                             <span>Certified Aesthetician Session</span>

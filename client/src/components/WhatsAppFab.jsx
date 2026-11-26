@@ -2,7 +2,7 @@ import React from 'react';
 import WhatsAppIcon from './WhatsAppIcon';
 import { generalEnquiryMessage, waLink } from '../lib/whatsapp';
 
-export default function WhatsAppFab({ whatsappNumber = '919999999999' }) {
+export default function WhatsAppFab({ whatsappNumber = import.meta.env.VITE_WHATSAPP_NUMBER || '916383643060' }) {
   const waHref = waLink(whatsappNumber, generalEnquiryMessage());
 
   return (

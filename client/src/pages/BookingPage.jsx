@@ -30,15 +30,33 @@ const timeSlots = [
 
 import { bookingRequestMessage, formatDate, waLink } from '../lib/whatsapp';
 
-export default function BookingPage({ onNavigate, initialServiceId = null, whatsappNumber = '919999999999' }) {
-  const [services, setServices] = useState([
-    { id: 'facial', name: 'Signature Botanical Facial', category: 'skin', dur: '60 min', price: 1800, desc: 'Deep cleansing, botanical enzyme exfoliation, and custom hydration.' },
-    { id: 'hydra', name: 'Hydra Glow & Oxygen Revival', category: 'skin', dur: '75 min', price: 2800, desc: 'Hyaluronic vortex infusion and oxygenated skin revival.' },
-    { id: 'hair', name: 'Restorative Hair Spa & Style', category: 'hair', dur: '90 min', price: 1500, desc: 'Deep conditioning argan repair mask, scalp massage, and blowout.' },
-    { id: 'nails', name: 'Luxury Gel Manicure & Hand Therapy', category: 'nails', dur: '60 min', price: 900, desc: 'Cuticle restoration, organic hand massage, and long-lasting gel coat.' },
-    { id: 'bridal', name: 'Bespoke Bridal Makeup Trial & Draping', category: 'bridal', dur: '120 min', price: 3500, desc: 'High-definition bridal trial, false lash placement, and wardrobe styling.' },
-    { id: 'wax', name: 'Gentle Waxing & Calming Body Wellness', category: 'wellness', dur: '30 min', price: 300, desc: 'Hypoallergenic strip waxing with soothing chamomile aloe vera.' }
-  ]);
+export default function BookingPage({
+  onNavigate,
+  initialServiceId = null,
+  whatsappNumber = import.meta.env.VITE_WHATSAPP_NUMBER || '916383643060',
+  serviceCategories: propServiceCategories = null,
+  servicesImages: propServicesImages = {}
+}) {
+  const [services, setServices] = useState([]);
+
+  const [siteCategories, setSiteCategories] = useState(
+    Array.isArray(propServiceCategories) ? propServiceCategories : []
+  );
+
+  useEffect(() => {
+    if (Array.isArray(propServiceCategories) && propServiceCategories.length > 0) {
+      setSiteCategories(propServiceCategories);
+    } else {
+      fetch('/api/settings')
+        .then(r => r.json())
+        .then(res => {
+          if (res.success && res.data && Array.isArray(res.data.serviceCategories)) {
+            setSiteCategories(res.data.serviceCategories);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [propServiceCategories]);
 
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedService, setSelectedService] = useState(null);
@@ -59,24 +77,29 @@ export default function BookingPage({ onNavigate, initialServiceId = null, whats
   const [confirmedBooking, setConfirmedBooking] = useState(null);
   const [bookingError, setBookingError] = useState('');
 
-  // Fetch dynamic services from server
+  // Fetch dynamic services from server - only MongoDB services will be shown
   useEffect(() => {
     fetch('/api/services')
       .then(r => r.json())
       .then(res => {
-        if (res.success && res.data && res.data.length > 0) {
+        if (res.success && Array.isArray(res.data)) {
           const list = res.data.map(s => ({
             id: s.id,
             name: s.name,
-            category: s.category || 'skin',
-            dur: s.dur || '60 min',
-            price: Number(s.price) || 1500,
-            desc: s.description || 'Personalized treatment with our studio specialists.'
+            category: s.category || '',
+            dur: s.dur || s.duration || '60 min',
+            price: Number(s.price) || 0,
+            desc: s.description || 'Personalized treatment with our studio specialists.',
+            image: s.image || ''
           }));
           setServices(list);
+        } else {
+          setServices([]);
         }
       })
-      .catch(() => {});
+      .catch(() => {
+        setServices([]);
+      });
   }, []);
 
   // Pre-select service from URL param or props
@@ -133,10 +156,56 @@ export default function BookingPage({ onNavigate, initialServiceId = null, whats
 
   const fmtCurrency = (n) => `₹${(n || 0).toLocaleString('en-IN')}`;
 
-  const filteredServices = services.filter(s => {
-    if (categoryFilter === 'all') return true;
-    return (s.category || '').toLowerCase() === categoryFilter.toLowerCase();
-  });
+  // Unified dynamic category pills: strictly studio categories registered in settings/DB
+  const categoryTabs = useMemo(() => {
+    const tabs = [{ id: 'all', name: 'All' }];
+    const seen = new Set(['all']);
+
+    // From studio configured categories in settings/DB only
+    if (Array.isArray(siteCategories) && siteCategories.length > 0) {
+      siteCategories.forEach(cat => {
+        const idKey = (cat.id || '').toLowerCase().trim();
+        if (idKey && !seen.has(idKey)) {
+          seen.add(idKey);
+          tabs.push({
+            id: cat.id,
+            name: cat.name || cat.id,
+            image: cat.image
+          });
+        }
+      });
+    }
+
+    return tabs;
+  }, [siteCategories]);
+
+  const resolveServiceImage = (svc) => {
+    if (svc.image) return svc.image;
+    const sCat = (svc.category || '').toLowerCase().trim();
+    const catObj = categoryTabs.find(
+      c => c.id?.toLowerCase() === sCat || c.name?.toLowerCase() === sCat
+    );
+    if (catObj?.image) return catObj.image;
+    if (propServicesImages && propServicesImages[svc.category]) return propServicesImages[svc.category];
+    if (propServicesImages && propServicesImages[sCat]) return propServicesImages[sCat];
+    return null;
+  };
+
+  const filteredServices = useMemo(() => {
+    if (categoryFilter === 'all') return services;
+
+    const filterLower = categoryFilter.toLowerCase().trim();
+    const matchingTab = categoryTabs.find(
+      t => t.id?.toLowerCase() === filterLower || t.name?.toLowerCase() === filterLower
+    );
+    const tabId = matchingTab?.id?.toLowerCase();
+    const tabName = matchingTab?.name?.toLowerCase();
+
+    return services.filter(s => {
+      const sCat = (s.category || '').toLowerCase().trim();
+      return sCat === filterLower || (tabId && sCat === tabId) || (tabName && sCat === tabName);
+    });
+  }, [services, categoryFilter, categoryTabs]);
 
   // Step Navigators
   const goToNextStep = () => {
@@ -305,51 +374,92 @@ export default function BookingPage({ onNavigate, initialServiceId = null, whats
 
                     {/* Category tabs */}
                     <div className="step-category-tabs">
-                      {['all', 'skin', 'hair', 'nails', 'bridal', 'wellness'].map(cat => (
-                        <button
-                          key={cat}
-                          className={`cat-tab-btn ${categoryFilter === cat ? 'active' : ''}`}
-                          onClick={() => setCategoryFilter(cat)}
-                        >
-                          {cat === 'all' ? 'All' : cat.toUpperCase()}
-                        </button>
-                      ))}
-                    </div>
-
-                    {/* Services cards selection */}
-                    <div className="service-selection-grid">
-                      {filteredServices.map(svc => {
-                        const isSelected = selectedService?.id === svc.id;
+                      {categoryTabs.map(cat => {
+                        const isActive =
+                          categoryFilter === cat.id ||
+                          (categoryFilter !== 'all' && cat.id !== 'all' && categoryFilter.toLowerCase() === cat.id.toLowerCase());
                         return (
-                          <div
-                            key={svc.id}
-                            className={`service-option-card ${isSelected ? 'selected' : ''}`}
-                            onClick={() => {
-                              setSelectedService(svc);
-                              setFormErrors({});
-                            }}
+                          <button
+                            key={cat.id}
+                            className={`cat-tab-btn ${isActive ? 'active' : ''}`}
+                            onClick={() => setCategoryFilter(cat.id)}
                           >
-                            <div className="service-card-top">
-                              <span className="service-cat-pill">{svc.category}</span>
-                              <div className="service-card-duration">
-                                <Clock size={13} />
-                                <span>{svc.dur}</span>
-                              </div>
-                            </div>
-
-                            <h4>{svc.name}</h4>
-                            <p>{svc.desc}</p>
-
-                            <div className="service-card-bottom">
-                              <span className="service-price-tag">{fmtCurrency(svc.price)}</span>
-                              <div className="selection-radio-circle">
-                                {isSelected && <div className="radio-inner" />}
-                              </div>
-                            </div>
-                          </div>
+                            {cat.id === 'all' ? 'All' : (cat.name || cat.id).toUpperCase()}
+                          </button>
                         );
                       })}
                     </div>
+
+                    {/* Services cards selection */}
+                    {filteredServices.length === 0 ? (
+                      <div style={{ textAlign: 'center', padding: '48px 20px', background: 'var(--brand-surface, #F8F5F0)', borderRadius: 16, border: '1px dashed var(--brand-border, #E6DEC8)', margin: '16px 0' }}>
+                        <p style={{ margin: 0, color: 'var(--text-muted, #786C5E)', fontSize: '.92rem' }}>
+                          No treatments are currently available in this category.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="service-selection-grid">
+                        {filteredServices.map(svc => {
+                          const isSelected = selectedService?.id === svc.id;
+                          const svcImg = resolveServiceImage(svc);
+                          const sCat = (svc.category || '').toLowerCase().trim();
+                          const catObj = categoryTabs.find(
+                            c => c.id?.toLowerCase() === sCat || c.name?.toLowerCase() === sCat
+                          );
+                          const catLabel = (catObj?.name || svc.category || '').toUpperCase();
+
+                          return (
+                            <div
+                              key={svc.id}
+                              className={`service-option-card ${isSelected ? 'selected' : ''}`}
+                              onClick={() => {
+                                setSelectedService(svc);
+                                setFormErrors({});
+                              }}
+                            >
+                              {svcImg && (
+                                <div
+                                  className="service-option-img-wrap"
+                                  style={{
+                                    width: '100%',
+                                    height: 120,
+                                    borderRadius: 10,
+                                    overflow: 'hidden',
+                                    marginBottom: 12,
+                                    background: 'var(--brand-surface, #F8F5F0)'
+                                  }}
+                                >
+                                  <img
+                                    src={svcImg}
+                                    alt={svc.name}
+                                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                    loading="lazy"
+                                  />
+                                </div>
+                              )}
+
+                              <div className="service-card-top">
+                                <span className="service-cat-pill">{catLabel}</span>
+                                <div className="service-card-duration">
+                                  <Clock size={13} />
+                                  <span>{svc.dur}</span>
+                                </div>
+                              </div>
+
+                              <h4>{svc.name}</h4>
+                              <p>{svc.desc}</p>
+
+                              <div className="service-card-bottom">
+                                <span className="service-price-tag">{fmtCurrency(svc.price)}</span>
+                                <div className="selection-radio-circle">
+                                  {isSelected && <div className="radio-inner" />}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
                 )}
 

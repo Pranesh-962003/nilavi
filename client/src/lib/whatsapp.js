@@ -38,54 +38,105 @@ const firstName = (name) => String(name || '').trim().split(/\s+/)[0] || 'there'
 
 export function generalEnquiryMessage() {
   return lines(
-    `Hi ${STUDIO_NAME},`,
+    '✨ *NILAVI AESTHETICS & BEAUTY STUDIO* ✨',
+    '_Bespoke Skin, Hair, Nails & Bridal Artistry • Chennai_',
+    '━━━━━━━━━━━━━━━━━━━━━━━━━━',
+    `Hello ${STUDIO_NAME} Team,`,
     '',
-    'I would like to know more about your treatments and availability.'
+    'I am reaching out via your website to enquire about treatments and consultation availability.',
+    '',
+    '📋 *Consultation & Treatment Enquiry:*',
+    '• *Interested In:* [ Skin Care / Hair Spa / Manicure / Bridal / Wellness ]',
+    '• *Preferred Day & Time:* ',
+    '• *Specific Concern / Question:* ',
+    '',
+    '📸 _(Attaching a reference photo of my skin / hair for specialist assessment)_',
+    '',
+    'Could you please share your service menu and available appointment slots?',
+    'Thank you!',
+    '━━━━━━━━━━━━━━━━━━━━━━━━━━',
+    `📍 *Studio:* ${STUDIO_ADDRESS}`,
+    '🌐 *Website & Treatment Menu:* https://nilavi.studio'
   );
 }
 
 export function serviceEnquiryMessage(service) {
+  const servicePriceStr = service.price
+    ? (typeof service.price === 'number' ? rupees(service.price) : service.price)
+    : null;
+  const serviceTiming = service.dur || service.timing || '60 min';
   return lines(
-    `Hi ${STUDIO_NAME},`,
+    '✨ *NILAVI AESTHETICS & BEAUTY STUDIO* ✨',
+    '_Treatment Consultation Enquiry_',
+    '━━━━━━━━━━━━━━━━━━━━━━━━━━',
+    `Hello ${STUDIO_NAME} Team,`,
     '',
-    'I am interested in this treatment:',
-    field('Service', service.name),
-    field('Duration', service.dur || service.timing),
-    service.price ? field('Starting price', typeof service.price === 'number' ? rupees(service.price) : service.price) : null,
+    'I am interested in booking this treatment:',
     '',
-    'Could you share the available slots?'
+    field('Treatment', service.name),
+    field('Duration', serviceTiming),
+    servicePriceStr ? field('Price Tier', servicePriceStr) : null,
+    service.image ? `🖼️ *Treatment Photo:* ${service.image}` : null,
+    '',
+    '• *Preferred Date / Slot:* ',
+    '• *Notes / Requests:* ',
+    '',
+    'Please let me know the upcoming available slots for this session.',
+    'Thank you!',
+    '━━━━━━━━━━━━━━━━━━━━━━━━━━',
+    `📍 *Studio:* ${STUDIO_ADDRESS}`,
+    '🌐 *Online Menu:* https://nilavi.studio'
   );
 }
 
 export function bookingRequestMessage(booking) {
   return lines(
-    `Hi ${STUDIO_NAME},`,
+    '✨ *NILAVI AESTHETICS & BEAUTY STUDIO* ✨',
+    '_New Appointment Booking Confirmation Request_',
+    '━━━━━━━━━━━━━━━━━━━━━━━━━━',
+    `Hello ${STUDIO_NAME} Team,`,
     '',
-    'I have just requested an appointment on your website. Please confirm my slot.',
+    'I have just requested an appointment on your website. Please confirm my reservation slot.',
     '',
-    field('Name', booking.customerName),
+    '📋 *Booking Details:*',
+    field('Client Name', booking.customerName),
     field('Phone', booking.customerPhone),
-    field('Service', booking.serviceName),
+    field('Treatment', booking.serviceName),
     field('Date', formatDate(booking.date)),
-    field('Time', booking.timeSlot),
+    field('Time Slot', booking.timeSlot),
     booking.serviceDuration ? field('Duration', booking.serviceDuration) : null,
-    booking.servicePrice ? field('Price', rupees(booking.servicePrice)) : null,
-    field('Notes', booking.notes),
-    booking.id ? field('Booking ref', booking.id) : null
+    booking.servicePrice ? field('Estimated Amount', rupees(booking.servicePrice)) : null,
+    field('Special Notes', booking.notes),
+    booking.id ? field('Reference ID', booking.id) : null,
+    '',
+    'Looking forward to your confirmation. Thank you!',
+    '━━━━━━━━━━━━━━━━━━━━━━━━━━',
+    `📍 *Studio:* ${STUDIO_ADDRESS}`
   );
 }
 
 export function contactFormMessage(form) {
   return lines(
-    `Hi ${STUDIO_NAME},`,
+    '✨ *NILAVI AESTHETICS & BEAUTY STUDIO* ✨',
+    '_Website Consultation & Enquiry Form_',
+    '━━━━━━━━━━━━━━━━━━━━━━━━━━',
+    `Hello ${STUDIO_NAME} Team,`,
     '',
-    'I have an enquiry:',
-    field('Name', form.name),
-    field('Phone', form.phone),
-    field('Email', form.email),
-    field('Interested in', form.topic),
+    'I am writing to enquire about consultation and treatments:',
     '',
-    form.message || null
+    form.name ? field('Client Name', form.name) : null,
+    form.phone ? field('Contact Phone', form.phone) : null,
+    form.email ? field('Email', form.email) : null,
+    form.topic ? field('Area of Interest', form.topic) : null,
+    '',
+    form.message ? `💬 *Message:*\n"${form.message}"` : null,
+    '',
+    '📸 _(Attaching a reference photo if applicable)_',
+    '',
+    'Could you please review and get back to me with consultation details and slot options?',
+    'Thank you!',
+    '━━━━━━━━━━━━━━━━━━━━━━━━━━',
+    `📍 *Studio:* ${STUDIO_ADDRESS}`
   );
 }
 

@@ -13,15 +13,9 @@ const times = [
   { l: '6:30 PM', h: 18.5, g: 'Evening' }
 ];
 
-export default function BookingWizard({ selectedServiceId, onBookingCreated, whatsappNumber = '919999999999' }) {
-  const [services, setServices] = useState([
-    { id: 'facial', name: 'Signature Facial', dur: '60 min', price: 1800, ic: 'M12 3c3.5 3.2 6 6 6 9.2A6 6 0 0 1 6 12.2C6 9 8.500 6.200 12 3Z' },
-    { id: 'hydra', name: 'Hydra Glow Facial', dur: '75 min', price: 2800, ic: 'M12 3l2.200 5.800L20 11l-5.800 2.200L12 19l-2.200-5.800L4 11l5.800-2.200z' },
-    { id: 'hair', name: 'Hair Spa and Style', dur: '90 min', price: 1500, ic: 'M5 4c0 6 2 9 7 9s7-3 7-9M12 13v8M8 21h8' },
-    { id: 'nails', name: 'Gel Manicure', dur: '60 min', price: 900, ic: 'M9 21V10a3 3 0 0 1 6 0v11M9 14h6' },
-    { id: 'bridal', name: 'Bridal Makeup Trial', dur: '120 min', price: 3500, ic: 'M4 9l4 3 4-7 4 7 4-3-2 10H6L4 9Z' },
-    { id: 'wax', name: 'Threading and Waxing', dur: '30 min', price: 300, ic: 'M4 20c4-1 5-5 6-9m0 0c1 4 3 7 10 9M10 11c0-3 1-6 4-8' }
-  ]);
+export default function BookingWizard({ selectedServiceId, onBookingCreated, whatsappNumber = import.meta.env.VITE_WHATSAPP_NUMBER || '916383643060' }) {
+  const [services, setServices] = useState([]);
+  const [loadingServices, setLoadingServices] = useState(true);
 
   const [step, setStep] = useState(1);
   const [selectedSvc, setSelectedSvc] = useState(null);
@@ -34,24 +28,48 @@ export default function BookingWizard({ selectedServiceId, onBookingCreated, wha
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [confirmedBooking, setConfirmedBooking] = useState(null);
+  const [takenSlots, setTakenSlots] = useState([]);
 
-  // Fetch dynamic services from server if available
+  // Fetch real booked slots for selected date from server
+  useEffect(() => {
+    if (!selectedDate?.iso) {
+      setTakenSlots([]);
+      return;
+    }
+    fetch(`/api/bookings/availability?date=${selectedDate.iso}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && Array.isArray(data.taken)) {
+          setTakenSlots(data.taken);
+        } else {
+          setTakenSlots([]);
+        }
+      })
+      .catch(() => setTakenSlots([]));
+  }, [selectedDate?.iso]);
+
+  // Fetch dynamic services from server - only MongoDB services will be shown
   useEffect(() => {
     fetch('/api/services')
       .then(res => res.json())
       .then(data => {
-        if (data.success && data.data && data.data.length > 0) {
+        if (data.success && Array.isArray(data.data)) {
           const mapped = data.data.map(s => ({
             id: s.id,
             name: s.name,
-            dur: s.dur || '45 min',
+            dur: s.dur || s.duration || '45 min',
             price: s.price,
-            ic: s.ic || 'M12 3c3.5 3.2 6 6 6 9.2A6 6 0 0 1 6 12.2C6 9 8.500 6.200 12 3Z'
+            ic: s.svgSymbol || s.ic || 'M12 3c3.5 3.2 6 6 6 9.2A6 6 0 0 1 6 12.2C6 9 8.500 6.200 12 3Z'
           }));
           setServices(mapped);
+        } else {
+          setServices([]);
         }
       })
-      .catch(() => {});
+      .catch(() => {
+        setServices([]);
+      })
+      .finally(() => setLoadingServices(false));
   }, []);
 
   // Update selected service when prop changes
@@ -87,15 +105,6 @@ export default function BookingWizard({ selectedServiceId, onBookingCreated, wha
 
   // Format currency
   const fmt = (n) => `₹${n.toLocaleString('en-IN')}`;
-
-  // Deterministic booking mock
-  const isBooked = (key) => {
-    let h = 0;
-    for (let i = 0; i < key.length; i++) {
-      h = (h * 31 + key.charCodeAt(i)) % 997;
-    }
-    return h % 5 === 0;
-  };
 
   const handleNext = () => {
     if (step === 1) {
@@ -175,13 +184,7 @@ export default function BookingWizard({ selectedServiceId, onBookingCreated, wha
         setErrors({ e3: data.message || 'Error creating appointment.' });
       }
     } catch (err) {
-      // In case server is offline, fallback gracefully with client state
-      const fallback = {
-        ...bookingPayload,
-        id: `local-${Date.now()}`
-      };
-      setConfirmedBooking(fallback);
-      if (onBookingCreated) onBookingCreated(fallback);
+      setErrors({ e3: 'Network error: Unable to connect to server. Please try again.' });
     } finally {
       setIsSubmitting(false);
     }
@@ -286,33 +289,41 @@ export default function BookingWizard({ selectedServiceId, onBookingCreated, wha
                 <div className="step on" data-s="1">
                   <h3>What would you like?</h3>
                   <p className="sub">Pick one. You can add more when we confirm.</p>
-                  <div className="svc-opts" role="radiogroup" aria-label="Treatment">
-                    {services.map((s) => (
-                      <label key={s.id} className="so">
-                        <input
-                          type="radio"
-                          name="svc"
-                          value={s.id}
-                          checked={selectedSvc?.id === s.id}
-                          onChange={() => {
-                            setSelectedSvc(s);
-                            setErrors({});
-                          }}
-                        />
-                        <div>
-                          <span className="ic">
-                            <svg viewBox="0 0 24 24">
-                              <path d={s.ic} />
-                            </svg>
-                          </span>
-                          <span>
-                            <b>{s.name}</b>
-                            <small>{s.dur} · from {fmt(s.price)}</small>
-                          </span>
-                        </div>
-                      </label>
-                    ))}
-                  </div>
+                  {services.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '36px 16px', background: 'rgba(255,255,255,0.6)', borderRadius: 12, border: '1px dashed var(--adm-border, #e5e7eb)' }}>
+                      <p style={{ margin: 0, color: 'var(--text-muted, #6b7280)', fontSize: '.9rem' }}>
+                        {loadingServices ? 'Loading treatments...' : 'No treatments are currently available to book.'}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="svc-opts" role="radiogroup" aria-label="Treatment">
+                      {services.map((s) => (
+                        <label key={s.id} className="so">
+                          <input
+                            type="radio"
+                            name="svc"
+                            value={s.id}
+                            checked={selectedSvc?.id === s.id}
+                            onChange={() => {
+                              setSelectedSvc(s);
+                              setErrors({});
+                            }}
+                          />
+                          <div>
+                            <span className="ic">
+                              <svg viewBox="0 0 24 24">
+                                <path d={s.ic} />
+                              </svg>
+                            </span>
+                            <span>
+                              <b>{s.name}</b>
+                              <small>{s.dur} · from {fmt(s.price)}</small>
+                            </span>
+                          </div>
+                        </label>
+                      ))}
+                    </div>
+                  )}
                   {errors.e1 && <div className="err" style={{ marginTop: 14 }}>{errors.e1}</div>}
                 </div>
               )}
@@ -363,7 +374,7 @@ export default function BookingWizard({ selectedServiceId, onBookingCreated, wha
                               {groupTimes.map((t) => {
                                 const isPast = isToday && t.h <= nowH;
                                 const isSunClosed = selectedDate.isSunday && (t.h < 11 || t.h >= 17);
-                                const isTaken = isBooked(selectedDate.iso + t.l);
+                                const isTaken = takenSlots.includes(t.l);
                                 const disabled = isPast || isSunClosed || isTaken;
 
                                 return (

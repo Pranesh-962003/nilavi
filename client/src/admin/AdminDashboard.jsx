@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   LayoutDashboard,
   Inbox,
@@ -75,7 +75,528 @@ const todayLocal = () => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
 
-export default function AdminDashboard({ onLogout, onBackToSite, whatsappNumber = '919999999999' }) {
+// Professional Drag & Drop Image Upload Zone Component
+function ImageDropzone({
+  onImageSelected,
+  label = 'Drag & drop image here, or click to browse',
+  hint = 'PNG, JPG, or WebP up to 5MB',
+  accept = 'image/png,image/jpeg,image/webp,image/svg+xml',
+  icon: Icon = Upload,
+  minHeight = 110,
+  compact = false,
+  previewUrl = '',
+  fallbackUrl = '',
+  fallbackLabel = 'Using Category Photo by default',
+  fallbackHint = 'Drag & drop custom photo or click to browse',
+  onRemove = null,
+  previewHeight = 65,
+  previewWidth = 85
+}) {
+  const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = useRef(null);
+
+  const handleDragEnter = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!isDragging) setIsDragging(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.currentTarget.contains(e.relatedTarget)) return;
+    setIsDragging(false);
+  };
+
+  const processFile = (file) => {
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      alert('Please upload a valid image file (PNG, JPG, SVG, WebP).');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (uploadEvent) => {
+      onImageSelected(uploadEvent.target.result);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    const file = e.dataTransfer?.files?.[0];
+    if (file) {
+      processFile(file);
+    }
+  };
+
+  const handleFileInputChange = (e) => {
+    const file = e.target?.files?.[0];
+    if (file) {
+      processFile(file);
+    }
+    if (e.target) e.target.value = '';
+  };
+
+  if (previewUrl) {
+    return (
+      <div
+        className={`pro-dropzone ${isDragging ? 'dragging' : ''}`}
+        onDragEnter={handleDragEnter}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+        style={{
+          display: 'flex',
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 14,
+          padding: '12px 16px',
+          background: 'var(--adm-bg)',
+          borderRadius: 'var(--adm-radius-md)',
+          border: isDragging ? '1.5px solid var(--adm-primary)' : '1px solid var(--adm-border)',
+          textAlign: 'left'
+        }}
+      >
+        <img
+          src={previewUrl}
+          alt="Preview"
+          style={{
+            width: previewWidth,
+            height: previewHeight,
+            objectFit: 'cover',
+            borderRadius: 'var(--adm-radius-sm)',
+            border: '1px solid var(--adm-border)',
+            flexShrink: 0
+          }}
+        />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <span style={{ fontSize: '.84rem', fontWeight: 600, display: 'block', color: 'var(--adm-text-primary)' }}>
+            {isDragging ? 'Drop new image to replace!' : 'Image Selected'}
+          </span>
+          <span style={{ fontSize: '.74rem', color: 'var(--adm-text-secondary)', display: 'block', marginTop: 2 }}>
+            {isDragging ? 'Release to upload immediately' : 'Drag new image here, or click replace'}
+          </span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+          <button
+            type="button"
+            className="pro-btn pro-btn-secondary pro-btn-sm"
+            onClick={() => fileInputRef.current?.click()}
+            title="Browse replacement file"
+          >
+            <Upload size={13} />
+            <span>Replace</span>
+          </button>
+          {onRemove && (
+            <button
+              type="button"
+              className="pro-btn pro-btn-sm"
+              style={{ color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.3)' }}
+              onClick={onRemove}
+              title="Remove image"
+            >
+              <Trash2 size={13} />
+            </button>
+          )}
+        </div>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept={accept}
+          style={{ display: 'none' }}
+          onChange={handleFileInputChange}
+        />
+      </div>
+    );
+  }
+
+  if (fallbackUrl) {
+    return (
+      <div
+        className={`pro-dropzone ${isDragging ? 'dragging' : ''}`}
+        onDragEnter={handleDragEnter}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+        onClick={() => fileInputRef.current?.click()}
+        style={{
+          display: 'flex',
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 14,
+          padding: '12px 16px',
+          background: 'var(--adm-bg)',
+          borderRadius: 'var(--adm-radius-md)',
+          border: isDragging ? '1.5px solid var(--adm-primary)' : '1px dashed var(--adm-border)',
+          textAlign: 'left',
+          cursor: 'pointer'
+        }}
+      >
+        <img
+          src={fallbackUrl}
+          alt="Category Fallback"
+          style={{
+            width: previewWidth,
+            height: previewHeight,
+            objectFit: 'cover',
+            borderRadius: 'var(--adm-radius-sm)',
+            border: '1px solid var(--adm-border)',
+            opacity: 0.75,
+            flexShrink: 0
+          }}
+        />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <span style={{ fontSize: '.84rem', fontWeight: 600, display: 'block', color: 'var(--adm-text-primary)' }}>
+            {isDragging ? 'Drop photo to set custom treatment image!' : fallbackLabel}
+          </span>
+          <span style={{ fontSize: '.74rem', color: 'var(--adm-text-secondary)', display: 'block', marginTop: 2 }}>
+            {isDragging ? 'Release to upload immediately' : fallbackHint}
+          </span>
+        </div>
+        <div style={{ flexShrink: 0 }}>
+          <span className="pro-btn pro-btn-secondary pro-btn-sm" style={{ pointerEvents: 'none', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <Upload size={13} />
+            <span>Upload Custom</span>
+          </span>
+        </div>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept={accept}
+          style={{ display: 'none' }}
+          onChange={handleFileInputChange}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className={`pro-dropzone ${isDragging ? 'dragging' : ''}`}
+      onDragEnter={handleDragEnter}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+      onClick={() => fileInputRef.current?.click()}
+      style={{ minHeight }}
+    >
+      <div className="pro-dropzone-icon">
+        <Icon size={compact ? 16 : 20} />
+      </div>
+      <span className="pro-dropzone-title">
+        {isDragging ? 'Drop image here to upload!' : label}
+      </span>
+      {hint && (
+        <span className="pro-dropzone-hint">
+          {isDragging ? 'Release to upload immediately' : hint}
+        </span>
+      )}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept={accept}
+        style={{ display: 'none' }}
+        onChange={handleFileInputChange}
+      />
+    </div>
+  );
+}
+
+// Drag & Drop Media Grid Card for Category Photography & Gallery
+function MediaDropCard({
+  image,
+  alt = '',
+  onImageSelected,
+  children
+}) {
+  const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = useRef(null);
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    const file = e.dataTransfer?.files?.[0];
+    if (file) {
+      if (!file.type.startsWith('image/')) {
+        alert('Please upload a valid image file (PNG, JPG, WebP).');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (uploadEvent) => onImageSelected(uploadEvent.target.result);
+      reader.readAsDataURL(file);
+    }
+  };
+
+  return (
+    <div
+      className={`pro-media-card ${isDragging ? 'dragging' : ''}`}
+      onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); setIsDragging(true); }}
+      onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setIsDragging(true); }}
+      onDragLeave={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (e.currentTarget.contains(e.relatedTarget)) return;
+        setIsDragging(false);
+      }}
+      onDrop={handleDrop}
+      style={{ display: 'flex', flexDirection: 'column', position: 'relative' }}
+    >
+      {children}
+      <div
+        className={`pro-media-preview-box ${isDragging ? 'dragging' : ''}`}
+        onClick={() => fileInputRef.current?.click()}
+        style={{ cursor: 'pointer' }}
+        title="Click or drag & drop new photo to replace"
+      >
+        <img src={image} alt={alt} />
+        {isDragging ? (
+          <div className="pro-media-drop-overlay">
+            <Upload size={22} />
+            <span>Drop image to replace!</span>
+          </div>
+        ) : (
+          <div className="pro-media-hover-overlay">
+            <Upload size={14} />
+            <span>Drop or click to change</span>
+          </div>
+        )}
+      </div>
+      <div style={{ marginTop: 'auto', paddingTop: 8 }}>
+        <button
+          type="button"
+          className="pro-btn pro-btn-secondary pro-btn-sm"
+          style={{ width: '100%', justifyContent: 'center', cursor: 'pointer' }}
+          onClick={() => fileInputRef.current?.click()}
+        >
+          <Upload size={13} />
+          <span>Upload Photo</span>
+        </button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/png,image/jpeg,image/webp"
+          style={{ display: 'none' }}
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) {
+              const reader = new FileReader();
+              reader.onload = (uploadEvent) => onImageSelected(uploadEvent.target.result);
+              reader.readAsDataURL(file);
+            }
+            if (e.target) e.target.value = '';
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+
+// Custom Luxury Category Filter Dropdown with Elegant Scrollbar & Treatment Counts
+function CategoryFilterDropdown({
+  categories = [],
+  selectedCategory,
+  onSelectCategory,
+  services = []
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const dropdownRef = useRef(null);
+
+  // Close when clicking outside or pressing Escape
+  useEffect(() => {
+    const handleOutsideClick = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setIsOpen(false);
+      }
+    };
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') setIsOpen(false);
+    };
+    if (isOpen) {
+      document.addEventListener('mousedown', handleOutsideClick);
+      document.addEventListener('keydown', handleKeyDown);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (isOpen) {
+      setSearchQuery('');
+    }
+  }, [isOpen]);
+
+  const activeCategory = (categories || []).find(
+    c => c.id === selectedCategory || (c.name && selectedCategory && c.name.toLowerCase() === selectedCategory.toLowerCase())
+  );
+
+  const isAllSelected = !selectedCategory || selectedCategory === 'all';
+  const displayLabel = isAllSelected
+    ? 'All Categories'
+    : (activeCategory?.name || selectedCategory);
+
+  const filteredCategories = (categories || []).filter(c =>
+    (c.name || '').toLowerCase().includes(searchQuery.toLowerCase().trim())
+  );
+
+  return (
+    <div className="pro-custom-dropdown-wrap" ref={dropdownRef}>
+      <button
+        type="button"
+        className={`pro-custom-dropdown-trigger ${isOpen ? 'open' : ''}`}
+        onClick={() => setIsOpen(!isOpen)}
+        aria-haspopup="listbox"
+        aria-expanded={isOpen}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 7, overflow: 'hidden' }}>
+          <Filter size={13} style={{ color: 'var(--adm-primary)', flexShrink: 0 }} />
+          <span style={{
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+            maxWidth: '180px'
+          }}>
+            {displayLabel}
+          </span>
+        </div>
+        <ChevronDown
+          size={14}
+          style={{
+            transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+            transition: 'transform 0.2s ease',
+            color: 'var(--adm-text-secondary)',
+            flexShrink: 0
+          }}
+        />
+      </button>
+
+      {isOpen && (
+        <div className="pro-custom-dropdown-menu" role="listbox">
+          {categories.length >= 5 && (
+            <div style={{ padding: '4px 6px 8px', borderBottom: '1px solid var(--adm-border-subtle)', marginBottom: 4 }}>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                background: 'var(--adm-bg)',
+                border: '1px solid var(--adm-border-subtle)',
+                borderRadius: 6,
+                padding: '4px 8px'
+              }}>
+                <Search size={12} style={{ color: 'var(--adm-text-secondary)', flexShrink: 0 }} />
+                <input
+                  type="text"
+                  placeholder="Filter category..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onClick={(e) => e.stopPropagation()}
+                  style={{
+                    border: 'none',
+                    background: 'transparent',
+                    outline: 'none',
+                    fontSize: '.76rem',
+                    color: 'var(--adm-text-primary)',
+                    width: '100%',
+                    padding: 0
+                  }}
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); setSearchQuery(''); }}
+                    style={{ border: 'none', background: 'transparent', padding: 0, cursor: 'pointer', color: 'var(--adm-text-secondary)', display: 'flex' }}
+                  >
+                    <X size={11} />
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
+          <div className="pro-custom-dropdown-scroll">
+            {!searchQuery && (
+              <>
+                <button
+                  type="button"
+                  className={`pro-custom-dropdown-item ${isAllSelected ? 'active' : ''}`}
+                  onClick={() => {
+                    onSelectCategory(null);
+                    setIsOpen(false);
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, overflow: 'hidden' }}>
+                    <Layers size={13} style={{ color: isAllSelected ? 'var(--adm-primary)' : 'var(--adm-text-secondary)', flexShrink: 0 }} />
+                    <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                      All Categories (Overview)
+                    </span>
+                  </div>
+                  <span className="pro-custom-badge">
+                    {categories.length}
+                  </span>
+                </button>
+                <div style={{ height: 1, background: 'var(--adm-border-subtle)', margin: '4px 0' }} />
+              </>
+            )}
+
+            {filteredCategories.length === 0 ? (
+              <div style={{ padding: '12px 10px', textAlign: 'center', fontSize: '.78rem', color: 'var(--adm-text-secondary)' }}>
+                No categories found
+              </div>
+            ) : (
+              filteredCategories.map((cat) => {
+                const isSelected = selectedCategory === cat.id || (selectedCategory && cat.name && selectedCategory.toLowerCase() === cat.name.toLowerCase());
+                const count = (services || []).filter(s => {
+                  const sCat = (s.category || '').toLowerCase().trim();
+                  return sCat === cat.id?.toLowerCase() || sCat === cat.name?.toLowerCase();
+                }).length;
+
+                return (
+                  <button
+                    key={cat.id}
+                    type="button"
+                    className={`pro-custom-dropdown-item ${isSelected ? 'active' : ''}`}
+                    onClick={() => {
+                      onSelectCategory(cat.id);
+                      setIsOpen(false);
+                    }}
+                    title={cat.name}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, overflow: 'hidden' }}>
+                      {isSelected ? (
+                        <Check size={13} style={{ color: 'var(--adm-primary)', flexShrink: 0 }} />
+                      ) : (
+                        <span style={{ width: 13, height: 13, display: 'inline-block', flexShrink: 0 }} />
+                      )}
+                      <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                        {cat.name}
+                      </span>
+                    </div>
+                    <span className="pro-custom-badge">
+                      {count}
+                    </span>
+                  </button>
+                );
+              })
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default function AdminDashboard({ onLogout, onBackToSite, whatsappNumber = import.meta.env.VITE_WHATSAPP_NUMBER || '916383643060' }) {
   // Navigation active tab: overview, leads, bookings, customers, services, media, reviews
   const [activeTab, setActiveTab] = useState('overview');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -140,13 +661,8 @@ export default function AdminDashboard({ onLogout, onBackToSite, whatsappNumber 
     heroTitle: 'Soft light for skin, hair and nails.',
     heroSubtitle: 'Gentle, personalized and unhurried treatments planned around your skin, hair care, makeup, and wellness goals.',
     heroImageUrl: 'https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?auto=format&fit=crop&w=900&q=80',
-    servicesImages: {
-      facial: 'https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?auto=format&fit=crop&w=900&q=80',
-      hair: 'https://images.unsplash.com/photo-1560869713-7d0a29430803?auto=format&fit=crop&w=900&q=80',
-      nails: 'https://images.unsplash.com/photo-1632345031435-8727f6897d53?auto=format&fit=crop&w=900&q=80',
-      bridal: 'https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?auto=format&fit=crop&w=900&q=80',
-      wax: 'https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&w=900&q=80'
-    },
+    serviceCategories: [],
+    servicesImages: {},
     galleryImages: [
       {
         id: 1,
@@ -216,6 +732,11 @@ export default function AdminDashboard({ onLogout, onBackToSite, whatsappNumber 
   const [bookingSearch, setBookingSearch] = useState('');
   const [customerSearch, setCustomerSearch] = useState('');
   const [serviceCategoryFilter, setServiceCategoryFilter] = useState('all');
+  const [selectedCategoryView, setSelectedCategoryView] = useState(null);
+
+  const allCategoryList = useMemo(() => {
+    return siteSettings.serviceCategories || [];
+  }, [siteSettings.serviceCategories]);
 
   // Sorting & Pagination States
   // Leads
@@ -245,11 +766,68 @@ export default function AdminDashboard({ onLogout, onBackToSite, whatsappNumber 
   const [showNewBookingModal, setShowNewBookingModal] = useState(false);
   const [showNewCustomerModal, setShowNewCustomerModal] = useState(false);
   const [showNewServiceModal, setShowNewServiceModal] = useState(false);
+  const [showNewCategoryModal, setShowNewCategoryModal] = useState(false);
   const [showNewReviewModal, setShowNewReviewModal] = useState(false);
   const [editingBooking, setEditingBooking] = useState(null);
   const [editingService, setEditingService] = useState(null);
   const [waModalBooking, setWaModalBooking] = useState(null);
   const [mediaSavedSuccess, setMediaSavedSuccess] = useState(false);
+  const [savingAction, setSavingAction] = useState(null);
+
+  // Dynamic Category Creation
+  const [newCategoryForm, setNewCategoryForm] = useState({
+    name: '',
+    image: '',
+    description: ''
+  });
+
+  const handleCreateCategory = async (e) => {
+    if (e) e.preventDefault();
+    if (!newCategoryForm.name.trim()) {
+      notify('Category name is required.', 'error');
+      return;
+    }
+    const slug = newCategoryForm.name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || `cat-${Date.now()}`;
+    const newCatItem = {
+      id: slug,
+      name: newCategoryForm.name.trim(),
+      image: newCategoryForm.image || 'https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&w=1000&q=85',
+      description: newCategoryForm.description || ''
+    };
+    const currentCats = Array.isArray(siteSettings.serviceCategories) ? [...siteSettings.serviceCategories] : [];
+    if (currentCats.some(c => c.id === slug)) {
+      notify('A category with this name or key already exists.', 'error');
+      return;
+    }
+    const updatedCats = [...currentCats, newCatItem];
+    const newSettings = {
+      ...siteSettings,
+      serviceCategories: updatedCats,
+      servicesImages: {
+        ...(siteSettings.servicesImages || {}),
+        [slug]: newCatItem.image
+      }
+    };
+
+    setSavingAction('create-category');
+    try {
+      setSiteSettings(newSettings);
+      await adminFetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newSettings)
+      });
+      setShowNewCategoryModal(false);
+      setNewCategoryForm({ name: '', image: '', description: '' });
+      notify(`Category "${newCatItem.name}" saved to MongoDB successfully!`, 'success');
+    } catch {
+      notify(`Category "${newCatItem.name}" added. Click "Save Media Changes" to persist.`, 'success');
+      setShowNewCategoryModal(false);
+      setNewCategoryForm({ name: '', image: '', description: '' });
+    } finally {
+      setSavingAction(null);
+    }
+  };
 
   // Forms
   const [newLeadForm, setNewLeadForm] = useState({
@@ -319,13 +897,13 @@ export default function AdminDashboard({ onLogout, onBackToSite, whatsappNumber 
         setSiteSettings(prev => ({
           ...prev,
           ...resSettings.data,
-          servicesImages: {
-            ...prev.servicesImages,
-            ...(resSettings.data.servicesImages || {})
-          },
-          galleryImages: resSettings.data.galleryImages?.length
+          serviceCategories: Array.isArray(resSettings.data.serviceCategories)
+            ? resSettings.data.serviceCategories
+            : [],
+          servicesImages: resSettings.data.servicesImages || {},
+          galleryImages: Array.isArray(resSettings.data.galleryImages)
             ? resSettings.data.galleryImages
-            : prev.galleryImages
+            : []
         }));
       }
     } catch (err) {
@@ -468,9 +1046,10 @@ export default function AdminDashboard({ onLogout, onBackToSite, whatsappNumber 
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [deleteDialog, selectedRecord, selectedLead, showNewLeadModal, showNewBookingModal, showNewCustomerModal, showNewServiceModal, showNewReviewModal, editingBooking, editingService, waModalBooking]);
 
-  // Save Settings
+  // Save Full Settings (Whole Page)
   const handleSaveSiteSettings = async (e) => {
     if (e) e.preventDefault();
+    setSavingAction('media');
     try {
       const res = await adminFetch('/api/settings', {
         method: 'POST',
@@ -479,19 +1058,53 @@ export default function AdminDashboard({ onLogout, onBackToSite, whatsappNumber 
       });
       const data = await res.json();
       if (data.success) {
+        if (data.data) setSiteSettings(data.data);
         setMediaSavedSuccess(true);
         setTimeout(() => setMediaSavedSuccess(false), 4000);
+        notify('All site branding and media changes saved successfully!', 'success');
+      } else {
+        notify(data.message || 'Could not save settings.', 'error');
       }
     } catch (err) {
       console.error(err);
       notify('Could not reach the studio server.', 'error');
+    } finally {
+      setSavingAction(null);
     }
   };
 
-  // Helper: File Upload with Base64 FileReader
+  // Save Specific Media Section (e.g. Brand, Hero, Categories, Gallery)
+  const handleSaveSection = async (sectionKey, payload, successMsg) => {
+    setSavingAction(`media-${sectionKey}`);
+    try {
+      const res = await adminFetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (data.success) {
+        if (data.data) setSiteSettings(data.data);
+        notify(successMsg || 'Section changes saved successfully!', 'success');
+      } else {
+        notify(data.message || 'Could not save section.', 'error');
+      }
+    } catch (err) {
+      console.error(err);
+      notify('Could not reach the studio server.', 'error');
+    } finally {
+      setSavingAction(null);
+    }
+  };
+
+  // Helper: File Upload & Drag-and-Drop with Base64 FileReader
   const handleFileUpload = (e, callback) => {
-    const file = e.target.files?.[0];
+    const file = e?.target?.files?.[0] || e?.dataTransfer?.files?.[0] || (e instanceof File ? e : null);
     if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      notify('Please upload a valid image file (PNG, JPG, SVG, WebP).', 'error');
+      return;
+    }
     const reader = new FileReader();
     reader.onload = (uploadEvent) => {
       callback(uploadEvent.target.result);
@@ -588,6 +1201,7 @@ export default function AdminDashboard({ onLogout, onBackToSite, whatsappNumber 
   // Create Manual / WhatsApp Lead
   const handleCreateLead = async (e) => {
     e.preventDefault();
+    setSavingAction('create-lead');
     try {
       const res = await adminFetch('/api/inquiries', {
         method: 'POST',
@@ -606,12 +1220,15 @@ export default function AdminDashboard({ onLogout, onBackToSite, whatsappNumber 
           message: ''
         });
         fetchData();
+        notify('Lead added to pipeline successfully!', 'success');
       } else {
         notify(data.message || 'That change could not be saved.', 'error');
       }
     } catch (err) {
       console.error(err);
       notify('Could not reach the studio server.', 'error');
+    } finally {
+      setSavingAction(null);
     }
   };
 
@@ -639,6 +1256,7 @@ export default function AdminDashboard({ onLogout, onBackToSite, whatsappNumber 
   const handleSaveEditedBooking = async (e) => {
     e.preventDefault();
     if (!editingBooking) return;
+    setSavingAction('edit-booking');
     try {
       const res = await adminFetch(`/api/bookings/${editingBooking.id}`, {
         method: 'PATCH',
@@ -649,12 +1267,15 @@ export default function AdminDashboard({ onLogout, onBackToSite, whatsappNumber 
       if (data.success) {
         setEditingBooking(null);
         fetchData();
+        notify('Appointment updated successfully!', 'success');
       } else {
         notify(data.message || 'That change could not be saved.', 'error');
       }
     } catch (err) {
       console.error(err);
       notify('Could not reach the studio server.', 'error');
+    } finally {
+      setSavingAction(null);
     }
   };
 
@@ -678,6 +1299,7 @@ export default function AdminDashboard({ onLogout, onBackToSite, whatsappNumber 
   // Create Direct Booking (Walk-in / Phone)
   const handleCreateBooking = async (e) => {
     e.preventDefault();
+    setSavingAction('create-booking');
     try {
       const res = await adminFetch('/api/bookings', {
         method: 'POST',
@@ -698,18 +1320,22 @@ export default function AdminDashboard({ onLogout, onBackToSite, whatsappNumber 
           status: 'confirmed'
         });
         fetchData();
+        notify('Appointment scheduled successfully!', 'success');
       } else {
         notify(data.message || 'That change could not be saved.', 'error');
       }
     } catch (err) {
       console.error(err);
       notify('Could not reach the studio server.', 'error');
+    } finally {
+      setSavingAction(null);
     }
   };
 
   // Create Customer Profile
   const handleCreateCustomer = async (e) => {
     e.preventDefault();
+    setSavingAction('create-customer');
     try {
       const payload = {
         ...newCustomer,
@@ -725,12 +1351,15 @@ export default function AdminDashboard({ onLogout, onBackToSite, whatsappNumber 
         setShowNewCustomerModal(false);
         setNewCustomer({ name: '', phone: '', email: '', tags: 'Regular', notes: '' });
         fetchData();
+        notify('Client profile created successfully!', 'success');
       } else {
         notify(data.message || 'That change could not be saved.', 'error');
       }
     } catch (err) {
       console.error(err);
       notify('Could not reach the studio server.', 'error');
+    } finally {
+      setSavingAction(null);
     }
   };
 
@@ -757,6 +1386,7 @@ export default function AdminDashboard({ onLogout, onBackToSite, whatsappNumber 
   // Create Service
   const handleCreateService = async (e) => {
     e.preventDefault();
+    setSavingAction('create-service');
     try {
       const res = await adminFetch('/api/services', {
         method: 'POST',
@@ -766,14 +1396,17 @@ export default function AdminDashboard({ onLogout, onBackToSite, whatsappNumber 
       const data = await res.json();
       if (data.success) {
         setShowNewServiceModal(false);
-        setNewService({ name: '', category: 'skin', dur: '60 min', price: 1500, description: '' });
+        setNewService({ name: '', category: (siteSettings.serviceCategories?.[0]?.id || 'skin'), dur: '60 min', price: 1500, description: '', image: '' });
         fetchData();
+        notify('Treatment service added successfully!', 'success');
       } else {
         notify(data.message || 'That change could not be saved.', 'error');
       }
     } catch (err) {
       console.error(err);
       notify('Could not reach the studio server.', 'error');
+    } finally {
+      setSavingAction(null);
     }
   };
 
@@ -781,6 +1414,7 @@ export default function AdminDashboard({ onLogout, onBackToSite, whatsappNumber 
   const handleSaveEditedService = async (e) => {
     e.preventDefault();
     if (!editingService) return;
+    setSavingAction('edit-service');
     try {
       const res = await adminFetch(`/api/services/${editingService.id}`, {
         method: 'PATCH',
@@ -791,12 +1425,15 @@ export default function AdminDashboard({ onLogout, onBackToSite, whatsappNumber 
       if (data.success) {
         setEditingService(null);
         fetchData();
+        notify('Treatment service updated successfully!', 'success');
       } else {
         notify(data.message || 'That change could not be saved.', 'error');
       }
     } catch (err) {
       console.error(err);
       notify('Could not reach the studio server.', 'error');
+    } finally {
+      setSavingAction(null);
     }
   };
 
@@ -817,9 +1454,71 @@ export default function AdminDashboard({ onLogout, onBackToSite, whatsappNumber 
     });
   };
 
+  // Delete Category & Cascade Delete Associated Services (with Custom Confirmation Popup)
+  const handleDeleteCategory = (cat) => {
+    if (!cat) return;
+    const catId = cat.id || '';
+    const catName = cat.name || catId;
+
+    // Count treatments belonging to this category
+    const catTreatmentsCount = services.filter(s => {
+      const sCat = (s.category || '').toLowerCase().trim();
+      return sCat === catId.toLowerCase().trim() || sCat === catName.toLowerCase().trim();
+    }).length;
+
+    const treatmentMsg = catTreatmentsCount > 0
+      ? `This will also permanently delete all ${catTreatmentsCount} treatment${catTreatmentsCount === 1 ? '' : 's'} inside this category.`
+      : 'There are currently no treatments in this category.';
+
+    requestDelete(
+      `Delete Category "${catName}"?`,
+      `Are you sure you want to permanently delete the "${catName}" category? ${treatmentMsg} This action cannot be undone.`,
+      async () => {
+        // Immediate optimistic UI update
+        setSiteSettings(prev => ({
+          ...prev,
+          serviceCategories: (prev.serviceCategories || []).filter(c => {
+            const cId = (c.id || '').toLowerCase().trim();
+            const cName = (c.name || '').toLowerCase().trim();
+            return cId !== catId.toLowerCase().trim() && cName !== catName.toLowerCase().trim();
+          })
+        }));
+        setServices(prev => prev.filter(s => {
+          const sCat = (s.category || '').toLowerCase().trim();
+          return sCat !== catId.toLowerCase().trim() && sCat !== catName.toLowerCase().trim();
+        }));
+
+        try {
+          const res = await adminFetch(`/api/settings/categories/${encodeURIComponent(catId)}`, {
+            method: 'DELETE'
+          });
+          const data = await res.json();
+          if (data.success) {
+            if (data.data && Array.isArray(data.data.serviceCategories)) {
+              setSiteSettings(data.data);
+            }
+            if (selectedCategoryView && (selectedCategoryView.toLowerCase() === catId.toLowerCase() || selectedCategoryView.toLowerCase() === catName.toLowerCase())) {
+              setSelectedCategoryView(null);
+            }
+            fetchData();
+            notify(data.message || `Category "${catName}" and treatments deleted permanently.`, 'success');
+          } else {
+            fetchData();
+            notify(data.message || 'Could not delete category.', 'error');
+          }
+        } catch (err) {
+          console.error(err);
+          fetchData();
+          notify('Could not reach the studio server.', 'error');
+        }
+      }
+    );
+  };
+
   // Create Review
   const handleCreateReview = async (e) => {
     e.preventDefault();
+    setSavingAction('create-review');
     try {
       const res = await adminFetch('/api/reviews', {
         method: 'POST',
@@ -831,12 +1530,15 @@ export default function AdminDashboard({ onLogout, onBackToSite, whatsappNumber 
         setShowNewReviewModal(false);
         setNewReview({ name: '', service: 'Signature Facial', stars: 5, quote: '', featured: false });
         fetchData();
+        notify('Review saved successfully!', 'success');
       } else {
         notify(data.message || 'That change could not be saved.', 'error');
       }
     } catch (err) {
       console.error(err);
       notify('Could not reach the studio server.', 'error');
+    } finally {
+      setSavingAction(null);
     }
   };
 
@@ -1695,14 +2397,24 @@ export default function AdminDashboard({ onLogout, onBackToSite, whatsappNumber 
         <div className="pro-sidebar-brand">
           {!isSidebarCollapsed ? (
             <>
-              <div className="pro-brand-link">
-                <div className="pro-brand-crest">
-                  <Sparkles size={18} />
-                </div>
-                <div className="pro-brand-text">
-                  <h4>{siteSettings.logoText || 'Nilavi'}</h4>
-                  <span>Studio Operations</span>
-                </div>
+              <div className="pro-brand-link" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                {siteSettings.logoImageUrl ? (
+                  <img
+                    src={siteSettings.logoImageUrl}
+                    alt={siteSettings.logoText || 'Nilavi'}
+                    style={{ maxHeight: 34, maxWidth: 110, objectFit: 'contain' }}
+                  />
+                ) : (
+                  <>
+                    <div className="pro-brand-crest">
+                      <Sparkles size={18} />
+                    </div>
+                    <div className="pro-brand-text">
+                      <h4>{siteSettings.logoText || 'Nilavi'}</h4>
+                      <span>Studio Operations</span>
+                    </div>
+                  </>
+                )}
               </div>
 
               <button
@@ -1715,14 +2427,25 @@ export default function AdminDashboard({ onLogout, onBackToSite, whatsappNumber 
               </button>
             </>
           ) : (
-            <button
-              className="pro-sidebar-toggle-btn"
-              onClick={toggleSidebar}
-              title="Expand sidebar"
-              aria-label="Expand sidebar"
-            >
-              <PanelLeftOpen size={18} />
-            </button>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+              {siteSettings.logoImageUrl ? (
+                <img
+                  src={siteSettings.logoImageUrl}
+                  alt={siteSettings.logoText || 'Nilavi'}
+                  style={{ width: 28, height: 28, objectFit: 'contain', cursor: 'pointer' }}
+                  onClick={toggleSidebar}
+                  title={siteSettings.logoText || 'Nilavi'}
+                />
+              ) : null}
+              <button
+                className="pro-sidebar-toggle-btn"
+                onClick={toggleSidebar}
+                title="Expand sidebar"
+                aria-label="Expand sidebar"
+              >
+                <PanelLeftOpen size={18} />
+              </button>
+            </div>
           )}
         </div>
 
@@ -2082,10 +2805,43 @@ export default function AdminDashboard({ onLogout, onBackToSite, whatsappNumber 
                 </button>
               )}
               {activeTab === 'services' && (
-                <button className="pro-btn pro-btn-gold" onClick={() => setShowNewServiceModal(true)}>
-                  <Plus size={15} />
-                  <span>Add Treatment</span>
-                </button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontSize: '.84rem', color: 'var(--adm-text-secondary)', fontWeight: 500 }}>Category:</span>
+                    <CategoryFilterDropdown
+                      categories={allCategoryList}
+                      selectedCategory={selectedCategoryView ? selectedCategoryView : (serviceCategoryFilter === 'all' ? null : serviceCategoryFilter)}
+                      onSelectCategory={(catId) => {
+                        if (selectedCategoryView) {
+                          setSelectedCategoryView(catId);
+                          setServiceCategoryFilter(catId || 'all');
+                        } else {
+                          setServiceCategoryFilter(catId || 'all');
+                        }
+                      }}
+                      services={services}
+                    />
+                  </div>
+
+                  {selectedCategoryView && (
+                    <button
+                      type="button"
+                      className="pro-btn pro-btn-gold"
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 38 }}
+                      onClick={() => {
+                        setNewService(prev => ({
+                          ...prev,
+                          category: selectedCategoryView && selectedCategoryView !== 'all' ? selectedCategoryView : (allCategoryList[0]?.id || 'skin'),
+                          image: ''
+                        }));
+                        setShowNewServiceModal(true);
+                      }}
+                    >
+                      <Plus size={14} />
+                      <span>Add Treatment</span>
+                    </button>
+                  )}
+                </div>
               )}
               {activeTab === 'reviews' && (
                 <button className="pro-btn pro-btn-gold" onClick={() => setShowNewReviewModal(true)}>
@@ -2094,9 +2850,9 @@ export default function AdminDashboard({ onLogout, onBackToSite, whatsappNumber 
                 </button>
               )}
               {activeTab === 'media' && (
-                <button className="pro-btn pro-btn-gold" onClick={handleSaveSiteSettings}>
-                  <Save size={15} />
-                  <span>Save Media Changes</span>
+                <button className="pro-btn pro-btn-gold" onClick={handleSaveSiteSettings} disabled={savingAction === 'media'}>
+                  {savingAction === 'media' ? <span className="pro-btn-spinner" /> : <Save size={15} />}
+                  <span>{savingAction === 'media' ? 'Saving Changes...' : 'Save Media Changes'}</span>
                 </button>
               )}
             </div>
@@ -2839,63 +3595,514 @@ export default function AdminDashboard({ onLogout, onBackToSite, whatsappNumber 
           {/* TAB 5: SERVICES MENU */}
           {activeTab === 'services' && (
             <div>
-              {/* Category Filter Pills */}
-              <div className="pro-quick-actions-bar" style={{ marginBottom: 20 }}>
-                <span className="pro-quick-actions-label">Filter Category:</span>
-                {['all', 'skin', 'hair', 'nails', 'bridal', 'wellness'].map(cat => (
-                  <button
-                    key={cat}
-                    className={`pro-pill-filter ${serviceCategoryFilter === cat ? 'active' : ''}`}
-                    onClick={() => setServiceCategoryFilter(cat)}
-                  >
-                    {cat.toUpperCase()}
-                  </button>
-                ))}
-              </div>
-
-              {/* Services Cards Grid */}
-              <div className="pro-service-cards-grid">
-                {filteredServices.map(s => (
-                  <div key={s.id} className="pro-service-card">
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                      <span className="pro-status-badge in_progress" style={{ textTransform: 'uppercase' }}>{s.category}</span>
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: '.76rem', color: 'var(--adm-text-secondary)' }}>
-                        <Clock size={12} />
-                        <span>{s.dur}</span>
-                      </span>
-                    </div>
-
-                    <h4 style={{ fontSize: '1rem', fontWeight: 600, margin: '0 0 6px', color: 'var(--adm-text-primary)' }}>{s.name}</h4>
-                    <p style={{ fontSize: '.8rem', color: 'var(--adm-text-secondary)', margin: '0 0 16px', lineHeight: 1.45, flex: 1 }}>
-                      {s.description || 'Gentle, personalized treatment planned around your goals.'}
-                    </p>
-
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 12, borderTop: '1px solid var(--adm-border)' }}>
-                      <div>
-                        <small style={{ display: 'block', fontSize: '.7rem', color: 'var(--adm-text-secondary)', textTransform: 'uppercase' }}>Price</small>
-                        <b style={{ fontSize: '1.05rem', color: 'var(--adm-primary)' }}>{fmtCurrency(s.price)}</b>
-                      </div>
-                      <div style={{ display: 'flex', gap: 6 }}>
-                        <button
-                          className="pro-btn-action"
-                          onClick={() => setEditingService({ ...s })}
-                          title="Edit Treatment"
-                        >
-                          <Edit3 size={13} />
-                          <span>Edit</span>
-                        </button>
-                        <button
-                          className="pro-btn-action delete"
-                          onClick={() => handleDeleteService(s.id)}
-                          title="Delete Treatment"
-                        >
-                          <Trash2 size={13} />
-                        </button>
-                      </div>
-                    </div>
+              {!selectedCategoryView ? (
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18, flexWrap: 'wrap', gap: 12 }}>
+                    <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 700, color: 'var(--adm-text-primary)' }}>
+                      Categories
+                    </h3>
+                    <button className="pro-btn pro-btn-gold" onClick={() => setShowNewCategoryModal(true)}>
+                      <Plus size={14} />
+                      <span>Add Category</span>
+                    </button>
                   </div>
-                ))}
-              </div>
+
+                  {/* Grid of Category Cards */}
+                  {allCategoryList.length === 0 ? (
+                    <div style={{
+                      textAlign: 'center',
+                      padding: '56px 20px',
+                      background: 'var(--adm-surface)',
+                      borderRadius: 'var(--adm-radius-lg)',
+                      border: '1px dashed var(--adm-border)',
+                      marginTop: 10,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}>
+                      {siteSettings.logoImageUrl ? (
+                        <img
+                          src={siteSettings.logoImageUrl}
+                          alt={siteSettings.logoText || 'Studio Logo'}
+                          style={{
+                            maxHeight: 56,
+                            maxWidth: 160,
+                            objectFit: 'contain',
+                            display: 'block',
+                            marginBottom: 14
+                          }}
+                        />
+                      ) : (
+                        <Sparkles size={32} style={{ color: 'var(--adm-primary)', marginBottom: 10, opacity: 0.8 }} />
+                      )}
+                      <h4 style={{ margin: '0 0 6px', fontSize: '1.05rem', color: 'var(--adm-text-primary)' }}>
+                        No Categories in Database
+                      </h4>
+                      <p style={{ margin: '0 0 16px', fontSize: '.84rem', color: 'var(--adm-text-secondary)' }}>
+                        Add your first treatment category to organize treatments.
+                      </p>
+                      <button
+                        type="button"
+                        className="pro-btn pro-btn-gold"
+                        onClick={() => setShowNewCategoryModal(true)}
+                      >
+                        <Plus size={14} />
+                        <span>Add First Category</span>
+                      </button>
+                    </div>
+                  ) : (
+                    <div style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
+                      gap: 18
+                    }}>
+                      {/* Dynamic Category Cards */}
+                      {allCategoryList
+                        .filter(cat => {
+                          if (!serviceCategoryFilter || serviceCategoryFilter === 'all') return true;
+                          return (
+                            cat.id === serviceCategoryFilter ||
+                            cat.id?.toLowerCase() === serviceCategoryFilter.toLowerCase() ||
+                            cat.name?.toLowerCase() === serviceCategoryFilter.toLowerCase()
+                          );
+                        })
+                        .map((cat, idx) => {
+                      const catServices = services.filter(s => {
+                        const sCat = (s.category || '').toLowerCase().trim();
+                        return sCat === cat.id.toLowerCase() || sCat === (cat.name || '').toLowerCase();
+                      });
+                      const catImg = cat.image || siteSettings.servicesImages?.[cat.id] || 'https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&w=600&q=80';
+
+                      return (
+                          <div
+                            key={cat.id || idx}
+                            className="pro-category-select-card"
+                            onClick={() => setSelectedCategoryView(cat.id)}
+                            style={{
+                              background: 'var(--adm-surface)',
+                              border: '1.5px solid var(--adm-border)',
+                              borderRadius: 'var(--adm-radius-lg)',
+                              overflow: 'hidden',
+                              cursor: 'pointer',
+                              transition: 'all 0.25s ease',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              boxShadow: '0 2px 8px rgba(0,0,0,0.04)'
+                            }}
+                          >
+                            <div style={{ width: '100%', height: 140, position: 'relative', overflow: 'hidden' }}>
+                              <img
+                                src={catImg}
+                                alt={cat.name}
+                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                              />
+                              <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.65) 0%, transparent 60%)' }} />
+                              <span style={{
+                                position: 'absolute',
+                                bottom: 10,
+                                left: 12,
+                                background: 'rgba(0,0,0,0.7)',
+                                color: '#FFFFFF',
+                                padding: '3px 9px',
+                                borderRadius: 999,
+                                fontSize: '.68rem',
+                                fontWeight: 600,
+                                backdropFilter: 'blur(4px)'
+                              }}>
+                                Category
+                              </span>
+                            </div>
+
+                            <div style={{ padding: 16, display: 'flex', flexDirection: 'column', flex: 1 }}>
+                              {/* 1. Full Category Title */}
+                              <h4 style={{
+                                margin: '0 0 8px',
+                                fontSize: '1.08rem',
+                                fontWeight: 700,
+                                color: 'var(--adm-text-primary)',
+                                lineHeight: 1.35
+                              }}>
+                                {cat.name}
+                              </h4>
+
+                              {/* 2. After Title: Treatment Count Badge & Delete Button */}
+                              <div style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                marginBottom: 10
+                              }}>
+                                <span style={{
+                                  fontSize: '.74rem',
+                                  fontWeight: 600,
+                                  color: 'var(--adm-primary)',
+                                  background: 'var(--adm-primary-light)',
+                                  padding: '3px 10px',
+                                  borderRadius: 999,
+                                  whiteSpace: 'nowrap'
+                                }}>
+                                  {catServices.length} {catServices.length === 1 ? 'treatment' : 'treatments'}
+                                </span>
+
+                                <button
+                                  type="button"
+                                  className="pro-btn-action delete"
+                                  style={{
+                                    height: 28,
+                                    padding: '0 9px',
+                                    borderRadius: 6,
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: 5,
+                                    fontSize: '.74rem',
+                                    cursor: 'pointer'
+                                  }}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteCategory(cat);
+                                  }}
+                                  title={`Delete "${cat.name}" category & treatments`}
+                                >
+                                  <Trash2 size={13} />
+                                  <span>Delete</span>
+                                </button>
+                              </div>
+
+                              <p style={{ margin: '0 0 16px', fontSize: '.82rem', color: 'var(--adm-text-secondary)', lineHeight: 1.45, flex: 1 }}>
+                                {cat.description || `Specialized ${cat.name} therapies and bespoke care.`}
+                              </p>
+
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 12, borderTop: '1px solid var(--adm-border)' }}>
+                                <span style={{ fontSize: '.82rem', fontWeight: 600, color: 'var(--adm-primary)' }}>
+                                  View Treatments &rarr;
+                                </span>
+                                <span style={{ fontSize: '.74rem', color: 'var(--adm-text-secondary)' }}>
+                                  {catServices.length} active
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                    })}
+
+                    {/* Quick Add Category Card - only show in All Categories view */}
+                    {(!serviceCategoryFilter || serviceCategoryFilter === 'all') && (
+                      <div
+                        onClick={() => setShowNewCategoryModal(true)}
+                        style={{
+                          background: 'var(--adm-surface)',
+                          border: '2px dashed var(--adm-border)',
+                          borderRadius: 'var(--adm-radius-lg)',
+                          padding: 24,
+                          cursor: 'pointer',
+                          transition: 'all 0.2s ease',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          minHeight: 240,
+                          textAlign: 'center'
+                        }}
+                      >
+                        <div style={{
+                          width: 52,
+                          height: 52,
+                          borderRadius: '50%',
+                          background: 'var(--adm-primary-light)',
+                          color: 'var(--adm-primary)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          marginBottom: 12
+                        }}>
+                          <Plus size={24} />
+                        </div>
+                        <h4 style={{ margin: '0 0 4px', fontSize: '1rem', fontWeight: 600, color: 'var(--adm-primary)' }}>
+                          + Add New Category
+                        </h4>
+                        <p style={{ margin: 0, fontSize: '.8rem', color: 'var(--adm-text-secondary)', maxWidth: 200 }}>
+                          Create a brand new salon department with custom photo and services.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+                </div>
+              ) : (
+                <div>
+                  {(() => {
+                    const activeCatObj = (siteSettings.serviceCategories || []).find(
+                      c => c.id === selectedCategoryView || c.id?.toLowerCase() === selectedCategoryView.toLowerCase()
+                    );
+                    const categoryDisplayName = selectedCategoryView === 'all'
+                      ? 'ALL'
+                      : (activeCatObj?.name || selectedCategoryView);
+                    const categoryHeroImg = selectedCategoryView === 'all'
+                      ? siteSettings.heroImageUrl
+                      : (activeCatObj?.image || siteSettings.servicesImages?.[selectedCategoryView]);
+
+                    const categoryTreatments = services.filter(s => {
+                      if (selectedCategoryView === 'all') return true;
+                      const sCat = (s.category || '').toLowerCase().trim();
+                      const viewKey = selectedCategoryView.toLowerCase().trim();
+                      if (sCat === viewKey) return true;
+                      if (activeCatObj && (sCat === activeCatObj.id?.toLowerCase() || sCat === activeCatObj.name?.toLowerCase())) return true;
+                      return false;
+                    });
+
+                    return (
+                      <div>
+                        {/* Top Back Navigation Bar */}
+                        <div style={{ display: 'flex', justifyContent: 'flex-start', alignItems: 'center', marginBottom: 18 }}>
+                          <button
+                            type="button"
+                            className="pro-btn pro-btn-secondary"
+                            onClick={() => setSelectedCategoryView(null)}
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '7px 14px', fontSize: '.84rem' }}
+                          >
+                            <ArrowLeft size={16} />
+                            <span>Back to Categories</span>
+                          </button>
+                        </div>
+
+                        {/* Category Banner Card */}
+                        <div style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 16,
+                          padding: '16px 20px',
+                          background: 'var(--adm-surface)',
+                          border: '1.5px solid var(--adm-primary-border)',
+                          borderRadius: 'var(--adm-radius-lg)',
+                          marginBottom: 22,
+                          boxShadow: '0 2px 10px rgba(0,0,0,0.03)',
+                          flexWrap: 'wrap'
+                        }}>
+                          {categoryHeroImg && (
+                            <img
+                              src={categoryHeroImg}
+                              alt={categoryDisplayName}
+                              style={{ width: 85, height: 68, borderRadius: 'var(--adm-radius-md)', objectFit: 'cover' }}
+                            />
+                          )}
+                          <div style={{ flex: 1, minWidth: 200 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+                              <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700, color: 'var(--adm-text-primary)' }}>
+                                {categoryDisplayName}
+                              </h3>
+                              <span style={{
+                                fontSize: '.75rem',
+                                fontWeight: 700,
+                                color: 'var(--adm-primary)',
+                                background: 'var(--adm-primary-light)',
+                                padding: '3px 10px',
+                                borderRadius: 999
+                              }}>
+                                {categoryTreatments.length} {categoryTreatments.length === 1 ? 'Treatment' : 'Treatments'}
+                              </span>
+                            </div>
+                            <p style={{ margin: 0, fontSize: '.84rem', color: 'var(--adm-text-secondary)' }}>
+                              {activeCatObj?.description || (selectedCategoryView === 'all' ? 'All active treatments available across all categories.' : `Treatments and sessions under ${categoryDisplayName}.`)}
+                            </p>
+                          </div>
+                          {selectedCategoryView !== 'all' && (
+                            <button
+                              type="button"
+                              className="pro-btn pro-btn-sm"
+                              style={{ color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.35)', display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                              onClick={() => handleDeleteCategory(activeCatObj || { id: selectedCategoryView, name: categoryDisplayName })}
+                              title={`Delete ${categoryDisplayName} category & treatments`}
+                            >
+                              <Trash2 size={13} />
+                              <span>Delete Category</span>
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Treatments in this Category */}
+                        {categoryTreatments.length === 0 ? (
+                          <div style={{
+                            textAlign: 'center',
+                            padding: '48px 20px',
+                            background: 'var(--adm-surface)',
+                            border: '1px dashed var(--adm-border)',
+                            borderRadius: 'var(--adm-radius-lg)',
+                            marginTop: 10,
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}>
+                            {siteSettings.logoImageUrl ? (
+                              <img
+                                src={siteSettings.logoImageUrl}
+                                alt={siteSettings.logoText || 'Studio Logo'}
+                                style={{
+                                  maxHeight: 58,
+                                  maxWidth: 160,
+                                  objectFit: 'contain',
+                                  marginBottom: 14,
+                                  display: 'block'
+                                }}
+                              />
+                            ) : (
+                              <div style={{
+                                width: 48,
+                                height: 48,
+                                borderRadius: '50%',
+                                background: 'var(--adm-primary-light)',
+                                color: 'var(--adm-primary)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                marginBottom: 12
+                              }}>
+                                <Sparkles size={24} />
+                              </div>
+                            )}
+                            <h4 style={{ margin: '0 0 6px', fontSize: '1rem', color: 'var(--adm-text-primary)' }}>
+                              No treatments in {categoryDisplayName} yet
+                            </h4>
+                            <p style={{ margin: '0 0 16px', fontSize: '.82rem', color: 'var(--adm-text-secondary)', maxWidth: 420 }}>
+                              Add your first treatment under this category to display it on your salon menu.
+                            </p>
+                            <button
+                              type="button"
+                              className="pro-btn pro-btn-gold"
+                              onClick={() => {
+                                setNewService(prev => ({
+                                  ...prev,
+                                  category: selectedCategoryView === 'all' ? (siteSettings.serviceCategories?.[0]?.id || 'skin') : selectedCategoryView,
+                                  image: ''
+                                }));
+                                setShowNewServiceModal(true);
+                              }}
+                            >
+                              <Plus size={14} />
+                              <span>Add First Treatment</span>
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="pro-service-cards-grid">
+                            {categoryTreatments.map(s => {
+                              const sCatObj = (siteSettings.serviceCategories || []).find(
+                                c => c.id === s.category || c.id?.toLowerCase() === (s.category || '').toLowerCase()
+                              );
+                              const displayImg = s.image || sCatObj?.image || siteSettings.servicesImages?.[s.category];
+
+                              return (
+                                <div key={s.id} className="pro-service-card">
+                                  {displayImg && (
+                                    <div style={{ width: '100%', height: 120, borderRadius: 8, overflow: 'hidden', marginBottom: 12, position: 'relative', background: 'var(--adm-bg)' }}>
+                                      <img src={displayImg} alt={s.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                      <span style={{
+                                        position: 'absolute',
+                                        top: 6,
+                                        right: 6,
+                                        fontSize: '.65rem',
+                                        fontWeight: 600,
+                                        background: s.image ? 'rgba(181, 138, 67, 0.92)' : 'rgba(0, 0, 0, 0.65)',
+                                        color: '#FFFFFF',
+                                        padding: '2px 7px',
+                                        borderRadius: 4,
+                                        backdropFilter: 'blur(4px)'
+                                      }}>
+                                        {s.image ? 'Custom Photo' : 'Category Photo'}
+                                      </span>
+                                    </div>
+                                  )}
+                                  <div style={{ marginBottom: 8 }}>
+                                    <span
+                                      className="pro-status-badge in_progress"
+                                      style={{
+                                        textTransform: 'uppercase',
+                                        fontSize: '.68rem',
+                                        maxWidth: '100%',
+                                        display: 'inline-block'
+                                      }}
+                                      title={sCatObj?.name || s.category}
+                                    >
+                                      {sCatObj?.name || s.category}
+                                    </span>
+                                  </div>
+
+                                  <h4 style={{ fontSize: '1.02rem', fontWeight: 600, margin: '0 0 6px', color: 'var(--adm-text-primary)', lineHeight: 1.35 }}>
+                                    {s.name}
+                                  </h4>
+
+                                  <div style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: 5,
+                                    fontSize: '.75rem',
+                                    color: 'var(--adm-text-secondary)',
+                                    marginBottom: 10,
+                                    fontWeight: 500
+                                  }}>
+                                    <Clock size={12} style={{ color: 'var(--adm-primary)' }} />
+                                    <span>{s.dur}</span>
+                                  </div>
+
+                                  <p style={{ fontSize: '.8rem', color: 'var(--adm-text-secondary)', margin: '0 0 16px', lineHeight: 1.45, flex: 1, minHeight: 46 }}>
+                                    {s.description || 'Gentle, personalized treatment planned around your goals.'}
+                                  </p>
+
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 12, borderTop: '1px solid var(--adm-border)', marginTop: 'auto' }}>
+                                    <div>
+                                      <small style={{ display: 'block', fontSize: '.7rem', color: 'var(--adm-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.03em' }}>Price</small>
+                                      <b style={{ fontSize: '1.08rem', color: 'var(--adm-primary)' }}>{fmtCurrency(s.price)}</b>
+                                    </div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                      <button
+                                        type="button"
+                                        className="pro-btn-action"
+                                        style={{
+                                          height: 32,
+                                          padding: '0 11px',
+                                          display: 'inline-flex',
+                                          alignItems: 'center',
+                                          gap: 5,
+                                          fontSize: '.78rem',
+                                          borderRadius: 6
+                                        }}
+                                        onClick={() => setEditingService({ ...s })}
+                                        title="Edit Treatment"
+                                      >
+                                        <Edit3 size={13} />
+                                        <span>Edit</span>
+                                      </button>
+                                      <button
+                                        type="button"
+                                        className="pro-btn-action delete"
+                                        style={{
+                                          width: 32,
+                                          height: 32,
+                                          minWidth: 32,
+                                          padding: 0,
+                                          borderRadius: 6,
+                                          display: 'inline-flex',
+                                          alignItems: 'center',
+                                          justifyContent: 'center',
+                                          cursor: 'pointer'
+                                        }}
+                                        onClick={() => handleDeleteService(s.id)}
+                                        title="Delete Treatment"
+                                      >
+                                        <Trash2 size={14} />
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
             </div>
           )}
 
@@ -2913,17 +4120,33 @@ export default function AdminDashboard({ onLogout, onBackToSite, whatsappNumber 
                 {/* 1. Brand Logo */}
                 <div className="pro-card">
                   <div className="pro-card-header">
-                    <div className="pro-card-title-group">
-                      <Sparkles size={18} style={{ color: 'var(--adm-accent)' }} />
-                      <div>
-                        <h3>Studio Brand Logo &amp; Identity</h3>
-                        <p>Customize the brand text or upload an image mark shown in the header</p>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', flexWrap: 'wrap', gap: 12 }}>
+                      <div className="pro-card-title-group">
+                        <Sparkles size={18} style={{ color: 'var(--adm-accent)' }} />
+                        <div>
+                          <h3>Studio Brand Logo &amp; Identity</h3>
+                          <p>Customize the brand text or upload an image mark shown in the header</p>
+                        </div>
                       </div>
+                      <button
+                        type="button"
+                        className="pro-btn pro-btn-secondary pro-btn-sm"
+                        disabled={savingAction === 'media-brand' || savingAction === 'media'}
+                        onClick={() => handleSaveSection(
+                          'brand',
+                          { logoText: siteSettings.logoText, logoImageUrl: siteSettings.logoImageUrl },
+                          'Brand logo and identity saved successfully!'
+                        )}
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                      >
+                        {savingAction === 'media-brand' ? <span className="pro-btn-spinner" /> : <Save size={13} />}
+                        <span>{savingAction === 'media-brand' ? 'Saving Brand...' : 'Save Brand Section'}</span>
+                      </button>
                     </div>
                   </div>
                   <div className="pro-card-body">
                     <div className="pro-form-row">
-                      <div className="pro-form-group">
+                      <div className="pro-form-group" style={{ flex: '1 1 320px' }}>
                         <label className="pro-form-label">Brand Name / Logo Text</label>
                         <input
                           type="text"
@@ -2932,91 +4155,74 @@ export default function AdminDashboard({ onLogout, onBackToSite, whatsappNumber 
                           onChange={(e) => setSiteSettings({ ...siteSettings, logoText: e.target.value })}
                           placeholder="e.g. Nilavi"
                         />
-                      </div>
-                      <div className="pro-form-group">
-                        <label className="pro-form-label">Custom Image Logo URL</label>
-                        <div style={{ display: 'flex', gap: 8 }}>
-                          <input
-                            type="url"
-                            className="pro-input"
-                            value={siteSettings.logoImageUrl || ''}
-                            onChange={(e) => setSiteSettings({ ...siteSettings, logoImageUrl: e.target.value })}
-                            placeholder="https://... logo image link"
-                          />
-                          <label className="pro-btn pro-btn-secondary" style={{ cursor: 'pointer' }} title="Upload local image">
-                            <Upload size={14} />
-                            <span>Upload</span>
-                            <input
-                              type="file"
-                              accept="image/*"
-                              style={{ display: 'none' }}
-                              onChange={(e) => handleFileUpload(e, (dataUrl) => {
-                                setSiteSettings({ ...siteSettings, logoImageUrl: dataUrl });
-                              })}
-                            />
-                          </label>
-                        </div>
+                        <span style={{ fontSize: '.74rem', color: 'var(--adm-text-secondary)', marginTop: 4, display: 'block' }}>
+                          Primary studio title shown in the header navigation
+                        </span>
                       </div>
                     </div>
 
-                    {siteSettings.logoImageUrl && (
-                      <div style={{ marginTop: 12, display: 'inline-flex', alignItems: 'center', gap: 12, padding: 10, background: 'var(--adm-bg)', borderRadius: 'var(--adm-radius-md)' }}>
-                        <img src={siteSettings.logoImageUrl} alt="Logo preview" style={{ height: 38, objectFit: 'contain' }} />
-                        <span style={{ fontSize: '.76rem', color: 'var(--adm-text-secondary)' }}>Live Logo Preview</span>
-                      </div>
-                    )}
+                    <div style={{ marginTop: 18 }}>
+                      <label className="pro-form-label" style={{ marginBottom: 8, display: 'block' }}>Studio Brand Logo Mark</label>
+                      <ImageDropzone
+                        previewUrl={siteSettings.logoImageUrl}
+                        onImageSelected={(dataUrl) => setSiteSettings({ ...siteSettings, logoImageUrl: dataUrl })}
+                        onRemove={() => setSiteSettings({ ...siteSettings, logoImageUrl: '' })}
+                        label="Drag & drop Studio Brand Logo here, or click to browse"
+                        hint="PNG, SVG, JPG, or WebP • Transparent backgrounds recommended"
+                        accept="image/png,image/jpeg,image/svg+xml,image/webp"
+                        minHeight={120}
+                        previewHeight={60}
+                        previewWidth={100}
+                      />
+                    </div>
                   </div>
                 </div>
 
                 {/* 2. Hero Section Media */}
                 <div className="pro-card">
                   <div className="pro-card-header">
-                    <div className="pro-card-title-group">
-                      <ImageIcon size={18} style={{ color: 'var(--adm-primary)' }} />
-                      <div>
-                        <h3>Hero Section Imagery &amp; Copy</h3>
-                        <p>Update the luxury arch portrait, headline, and subtitle</p>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', flexWrap: 'wrap', gap: 12 }}>
+                      <div className="pro-card-title-group">
+                        <ImageIcon size={18} style={{ color: 'var(--adm-primary)' }} />
+                        <div>
+                          <h3>Hero Section Imagery &amp; Copy</h3>
+                          <p>Update the luxury arch portrait, headline, and subtitle</p>
+                        </div>
                       </div>
+                      <button
+                        type="button"
+                        className="pro-btn pro-btn-secondary pro-btn-sm"
+                        disabled={savingAction === 'media-hero' || savingAction === 'media'}
+                        onClick={() => handleSaveSection(
+                          'hero',
+                          {
+                            heroImageUrl: siteSettings.heroImageUrl,
+                            heroTagline: siteSettings.heroTagline,
+                            heroTitle: siteSettings.heroTitle,
+                            heroSubtitle: siteSettings.heroSubtitle
+                          },
+                          'Hero section media and copy saved successfully!'
+                        )}
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                      >
+                        {savingAction === 'media-hero' ? <span className="pro-btn-spinner" /> : <Save size={13} />}
+                        <span>{savingAction === 'media-hero' ? 'Saving Hero...' : 'Save Hero Section'}</span>
+                      </button>
                     </div>
                   </div>
                   <div className="pro-card-body">
-                    <div className="pro-form-group">
-                      <label className="pro-form-label">Hero Arch Portrait Image URL</label>
-                      <div style={{ display: 'flex', gap: 8 }}>
-                        <input
-                          type="url"
-                          className="pro-input"
-                          value={siteSettings.heroImageUrl || ''}
-                          onChange={(e) => setSiteSettings({ ...siteSettings, heroImageUrl: e.target.value })}
-                          placeholder="https://... portrait image link"
-                        />
-                        <label className="pro-btn pro-btn-secondary" style={{ cursor: 'pointer' }} title="Upload local image">
-                          <Upload size={14} />
-                          <span>Upload</span>
-                          <input
-                            type="file"
-                            accept="image/*"
-                            style={{ display: 'none' }}
-                            onChange={(e) => handleFileUpload(e, (dataUrl) => {
-                              setSiteSettings({ ...siteSettings, heroImageUrl: dataUrl });
-                            })}
-                          />
-                        </label>
-                      </div>
-
-                      {siteSettings.heroImageUrl && (
-                        <div style={{ marginTop: 12, display: 'flex', gap: 16, alignItems: 'center' }}>
-                          <img
-                            src={siteSettings.heroImageUrl}
-                            alt="Hero preview"
-                            style={{ width: 100, height: 120, objectFit: 'cover', borderRadius: 'var(--adm-radius-md)', border: '1px solid var(--adm-border)' }}
-                          />
-                          <div>
-                            <b style={{ display: 'block', fontSize: '.84rem', color: 'var(--adm-text-primary)' }}>Hero Arch Live Preview</b>
-                            <span style={{ fontSize: '.76rem', color: 'var(--adm-text-secondary)' }}>Rendered inside the luxury arch frame on the client homepage.</span>
-                          </div>
-                        </div>
-                      )}
+                    <div style={{ marginBottom: 20 }}>
+                      <label className="pro-form-label" style={{ marginBottom: 8, display: 'block' }}>Hero Arch Portrait Photo</label>
+                      <ImageDropzone
+                        previewUrl={siteSettings.heroImageUrl}
+                        onImageSelected={(dataUrl) => setSiteSettings({ ...siteSettings, heroImageUrl: dataUrl })}
+                        onRemove={() => setSiteSettings({ ...siteSettings, heroImageUrl: '' })}
+                        label="Drag & drop Hero Arch Portrait here, or click to browse"
+                        hint="PNG, JPG, or WebP • Vertical portrait recommended"
+                        minHeight={120}
+                        previewHeight={90}
+                        previewWidth={68}
+                      />
                     </div>
 
                     <div className="pro-form-row">
@@ -3052,65 +4258,108 @@ export default function AdminDashboard({ onLogout, onBackToSite, whatsappNumber 
                   </div>
                 </div>
 
-                {/* 3. Services Section Images */}
+                {/* 3. Services Section Images & Dynamic Categories */}
                 <div className="pro-card">
                   <div className="pro-card-header">
-                    <div className="pro-card-title-group">
-                      <Scissors size={18} style={{ color: 'var(--adm-primary)' }} />
-                      <div>
-                        <h3>Treatment Category Imagery</h3>
-                        <p>Update category card photography shown on the website service menu</p>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', flexWrap: 'wrap', gap: 12 }}>
+                      <div className="pro-card-title-group">
+                        <Scissors size={18} style={{ color: 'var(--adm-primary)' }} />
+                        <div>
+                          <h3>Treatment Categories &amp; Imagery</h3>
+                          <p>Add, rename, and customize photography for treatment categories across the studio menu</p>
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                        <button
+                          type="button"
+                          className="pro-btn pro-btn-secondary pro-btn-sm"
+                          disabled={savingAction === 'media-categories' || savingAction === 'media'}
+                          onClick={() => handleSaveSection(
+                            'categories',
+                            {
+                              serviceCategories: siteSettings.serviceCategories,
+                              servicesImages: siteSettings.servicesImages
+                            },
+                            'Category imagery and naming saved successfully!'
+                          )}
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                        >
+                          {savingAction === 'media-categories' ? <span className="pro-btn-spinner" /> : <Save size={13} />}
+                          <span>{savingAction === 'media-categories' ? 'Saving Categories...' : 'Save Categories'}</span>
+                        </button>
+                        <button
+                          type="button"
+                          className="pro-btn pro-btn-gold pro-btn-sm"
+                          onClick={() => setShowNewCategoryModal(true)}
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                        >
+                          <Plus size={14} />
+                          <span>Add New Category</span>
+                        </button>
                       </div>
                     </div>
                   </div>
                   <div className="pro-card-body">
                     <div className="pro-media-grid">
-                      {['facial', 'hair', 'nails', 'bridal', 'wax'].map(svcKey => (
-                        <div key={svcKey} className="pro-media-card">
-                          <b style={{ display: 'block', fontSize: '.82rem', marginBottom: 8, color: 'var(--adm-text-primary)' }}>
-                            {svcKey === 'facial' ? 'Facials & Skin Care' :
-                             svcKey === 'hair' ? 'Hair Spa & Style' :
-                             svcKey === 'nails' ? 'Manicure & Nails' :
-                             svcKey === 'bridal' ? 'Bridal Artistry' : 'Wellness & Waxing'}
-                          </b>
-                          <div className="pro-media-preview-box">
-                            <img src={siteSettings.servicesImages?.[svcKey] || ''} alt={svcKey} />
-                          </div>
-                          <div style={{ display: 'flex', gap: 6 }}>
-                            <input
-                              type="url"
-                              className="pro-input"
-                              style={{ height: 32, fontSize: '.78rem' }}
-                              value={siteSettings.servicesImages?.[svcKey] || ''}
-                              onChange={(e) => setSiteSettings({
+                      {(siteSettings.serviceCategories || []).length === 0 ? (
+                        <div style={{ textAlign: 'center', padding: '48px 20px', width: '100%', gridColumn: '1 / -1', background: 'var(--adm-bg)', borderRadius: 'var(--adm-radius-md)', border: '1px dashed var(--adm-border)' }}>
+                          <Scissors size={28} style={{ color: 'var(--adm-primary)', marginBottom: 8, opacity: 0.6 }} />
+                          <h4 style={{ margin: '0 0 6px', fontSize: '.95rem', color: 'var(--adm-text-primary)' }}>No Treatment Categories</h4>
+                          <p style={{ margin: '0 0 16px', fontSize: '.82rem', color: 'var(--adm-text-secondary)' }}>Click "Add New Category" above to create your first salon category.</p>
+                          <button
+                            type="button"
+                            className="pro-btn pro-btn-gold pro-btn-sm"
+                            onClick={() => setShowNewCategoryModal(true)}
+                          >
+                            <Plus size={14} />
+                            <span>Add New Category</span>
+                          </button>
+                        </div>
+                      ) : (
+                        (siteSettings.serviceCategories || []).map((cat, idx) => (
+                          <MediaDropCard
+                            key={cat.id || idx}
+                            image={cat.image || siteSettings.servicesImages?.[cat.id] || 'https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&w=1000&q=85'}
+                            alt={cat.name}
+                            onImageSelected={(dataUrl) => {
+                              const copy = [...(siteSettings.serviceCategories || [])];
+                              copy[idx] = { ...copy[idx], image: dataUrl };
+                              setSiteSettings({
                                 ...siteSettings,
+                                serviceCategories: copy,
                                 servicesImages: {
                                   ...siteSettings.servicesImages,
-                                  [svcKey]: e.target.value
+                                  [cat.id]: dataUrl
                                 }
-                              })}
-                              placeholder="Image URL"
-                            />
-                            <label className="pro-btn pro-btn-secondary pro-btn-sm" style={{ cursor: 'pointer' }}>
-                              <Upload size={12} />
+                              });
+                            }}
+                          >
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, gap: 6 }}>
                               <input
-                                type="file"
-                                accept="image/*"
-                                style={{ display: 'none' }}
-                                onChange={(e) => handleFileUpload(e, (dataUrl) => {
-                                  setSiteSettings({
-                                    ...siteSettings,
-                                    servicesImages: {
-                                      ...siteSettings.servicesImages,
-                                      [svcKey]: dataUrl
-                                    }
-                                  });
-                                })}
+                                type="text"
+                                className="pro-input"
+                                style={{ height: 32, fontSize: '.84rem', fontWeight: 600, flex: 1 }}
+                                value={cat.name}
+                                placeholder="Category Name"
+                                onChange={(e) => {
+                                  const copy = [...(siteSettings.serviceCategories || [])];
+                                  copy[idx] = { ...copy[idx], name: e.target.value };
+                                  setSiteSettings({ ...siteSettings, serviceCategories: copy });
+                                }}
                               />
-                            </label>
-                          </div>
-                        </div>
-                      ))}
+                              <button
+                                type="button"
+                                className="pro-btn pro-btn-sm"
+                                style={{ padding: '0 8px', height: 32, color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.3)', background: 'transparent' }}
+                                onClick={() => handleDeleteCategory(cat)}
+                                title={`Delete "${cat.name}" category & treatments`}
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            </div>
+                          </MediaDropCard>
+                        ))
+                      )}
                     </div>
                   </div>
                 </div>
@@ -3118,31 +4367,53 @@ export default function AdminDashboard({ onLogout, onBackToSite, whatsappNumber 
                 {/* 4. Gallery Showcase Images */}
                 <div className="pro-card">
                   <div className="pro-card-header">
-                    <div className="pro-card-title-group">
-                      <ImageIcon size={18} style={{ color: 'var(--adm-accent)' }} />
-                      <div>
-                        <h3>Customer Showcase Gallery</h3>
-                        <p>Curate client result photos displayed in the homepage gallery grid</p>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', flexWrap: 'wrap', gap: 12 }}>
+                      <div className="pro-card-title-group">
+                        <ImageIcon size={18} style={{ color: 'var(--adm-accent)' }} />
+                        <div>
+                          <h3>Customer Showcase Gallery</h3>
+                          <p>Curate client result photos displayed in the homepage gallery grid</p>
+                        </div>
                       </div>
+                      <button
+                        type="button"
+                        className="pro-btn pro-btn-secondary pro-btn-sm"
+                        disabled={savingAction === 'media-gallery' || savingAction === 'media'}
+                        onClick={() => handleSaveSection(
+                          'gallery',
+                          { galleryImages: siteSettings.galleryImages },
+                          'Customer showcase gallery saved successfully!'
+                        )}
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                      >
+                        {savingAction === 'media-gallery' ? <span className="pro-btn-spinner" /> : <Save size={13} />}
+                        <span>{savingAction === 'media-gallery' ? 'Saving Gallery...' : 'Save Gallery Section'}</span>
+                      </button>
                     </div>
                   </div>
                   <div className="pro-card-body">
                     <div className="pro-media-grid">
                       {(siteSettings.galleryImages || []).map((imgItem, idx) => (
-                        <div key={imgItem.id || idx} className="pro-media-card">
+                        <MediaDropCard
+                          key={imgItem.id || idx}
+                          image={imgItem.image}
+                          alt={imgItem.title}
+                          onImageSelected={(dataUrl) => {
+                            const copy = [...siteSettings.galleryImages];
+                            copy[idx] = { ...copy[idx], image: dataUrl };
+                            setSiteSettings({ ...siteSettings, galleryImages: copy });
+                          }}
+                        >
                           <b style={{ display: 'block', fontSize: '.82rem', marginBottom: 8, color: 'var(--adm-text-primary)' }}>
                             Tile {idx + 1}: {imgItem.title || 'Showcase'}
                           </b>
-                          <div className="pro-media-preview-box">
-                            <img src={imgItem.image} alt={imgItem.title} />
-                          </div>
-                          <div style={{ marginBottom: 6 }}>
+                          <div style={{ marginBottom: 8 }}>
                             <input
                               type="text"
                               className="pro-input"
-                              style={{ height: 30, fontSize: '.76rem' }}
+                              style={{ height: 32, fontSize: '.78rem' }}
                               value={imgItem.title}
-                              placeholder="Tile title"
+                              placeholder="Tile caption / title"
                               onChange={(e) => {
                                 const copy = [...siteSettings.galleryImages];
                                 copy[idx] = { ...copy[idx], title: e.target.value };
@@ -3150,43 +4421,16 @@ export default function AdminDashboard({ onLogout, onBackToSite, whatsappNumber 
                               }}
                             />
                           </div>
-                          <div style={{ display: 'flex', gap: 6 }}>
-                            <input
-                              type="url"
-                              className="pro-input"
-                              style={{ height: 32, fontSize: '.78rem' }}
-                              value={imgItem.image}
-                              placeholder="Image URL"
-                              onChange={(e) => {
-                                const copy = [...siteSettings.galleryImages];
-                                copy[idx] = { ...copy[idx], image: e.target.value };
-                                setSiteSettings({ ...siteSettings, galleryImages: copy });
-                              }}
-                            />
-                            <label className="pro-btn pro-btn-secondary pro-btn-sm" style={{ cursor: 'pointer' }}>
-                              <Upload size={12} />
-                              <input
-                                type="file"
-                                accept="image/*"
-                                style={{ display: 'none' }}
-                                onChange={(e) => handleFileUpload(e, (dataUrl) => {
-                                  const copy = [...siteSettings.galleryImages];
-                                  copy[idx] = { ...copy[idx], image: dataUrl };
-                                  setSiteSettings({ ...siteSettings, galleryImages: copy });
-                                })}
-                              />
-                            </label>
-                          </div>
-                        </div>
+                        </MediaDropCard>
                       ))}
                     </div>
                   </div>
                 </div>
 
                 <div style={{ textAlign: 'right', marginTop: 24 }}>
-                  <button type="submit" className="pro-btn pro-btn-gold" style={{ padding: '0 32px', height: 42 }}>
-                    <Save size={16} />
-                    <span>Save All Media &amp; Branding Changes</span>
+                  <button type="submit" className="pro-btn pro-btn-gold" style={{ padding: '0 32px', height: 42 }} disabled={savingAction === 'media'}>
+                    {savingAction === 'media' ? <span className="pro-btn-spinner" /> : <Save size={16} />}
+                    <span>{savingAction === 'media' ? 'Saving Changes...' : 'Save All Media & Branding Changes'}</span>
                   </button>
                 </div>
               </form>
@@ -3531,8 +4775,9 @@ export default function AdminDashboard({ onLogout, onBackToSite, whatsappNumber 
                 <button type="button" className="pro-btn pro-btn-secondary" onClick={() => setShowNewLeadModal(false)}>
                   Cancel
                 </button>
-                <button type="submit" className="pro-btn pro-btn-gold">
-                  <span>Save Lead to Pipeline</span>
+                <button type="submit" className="pro-btn pro-btn-gold" disabled={savingAction === 'create-lead'}>
+                  {savingAction === 'create-lead' && <span className="pro-btn-spinner" />}
+                  <span>{savingAction === 'create-lead' ? 'Saving Lead...' : 'Save Lead to Pipeline'}</span>
                 </button>
               </div>
             </form>
@@ -3647,8 +4892,9 @@ export default function AdminDashboard({ onLogout, onBackToSite, whatsappNumber 
                 <button type="button" className="pro-btn pro-btn-secondary" onClick={() => setEditingBooking(null)}>
                   Cancel
                 </button>
-                <button type="submit" className="pro-btn pro-btn-gold">
-                  <span>Save Rescheduled Appointment</span>
+                <button type="submit" className="pro-btn pro-btn-gold" disabled={savingAction === 'edit-booking'}>
+                  {savingAction === 'edit-booking' && <span className="pro-btn-spinner" />}
+                  <span>{savingAction === 'edit-booking' ? 'Updating Appointment...' : 'Save Rescheduled Appointment'}</span>
                 </button>
               </div>
             </form>
@@ -3771,12 +5017,38 @@ export default function AdminDashboard({ onLogout, onBackToSite, whatsappNumber 
                 <button type="button" className="pro-btn pro-btn-secondary" onClick={() => setShowNewBookingModal(false)}>
                   Cancel
                 </button>
-                <button type="submit" className="pro-btn pro-btn-gold">
-                  <span>Confirm &amp; Schedule Appointment</span>
+                <button type="submit" className="pro-btn pro-btn-gold" disabled={savingAction === 'create-booking'}>
+                  {savingAction === 'create-booking' && <span className="pro-btn-spinner" />}
+                  <span>{savingAction === 'create-booking' ? 'Scheduling Appointment...' : 'Confirm & Schedule Appointment'}</span>
                 </button>
               </div>
             </form>
           </div>
+        </div>
+      )}
+
+      {/* GLOBAL SAVING STATUS INDICATOR */}
+      {savingAction && (
+        <div style={{
+          position: 'fixed',
+          bottom: 24,
+          right: 24,
+          background: 'rgba(26, 26, 26, 0.95)',
+          color: '#FFFFFF',
+          padding: '10px 18px',
+          borderRadius: 999,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10,
+          boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
+          zIndex: 99999,
+          fontSize: '.82rem',
+          fontWeight: 600,
+          backdropFilter: 'blur(8px)',
+          border: '1px solid rgba(181, 138, 67, 0.4)'
+        }}>
+          <span className="pro-btn-spinner" style={{ width: 14, height: 14, borderTopColor: '#B58A43' }} />
+          <span>Saving changes, please wait...</span>
         </div>
       )}
 
@@ -3902,8 +5174,9 @@ export default function AdminDashboard({ onLogout, onBackToSite, whatsappNumber 
                 <button type="button" className="pro-btn pro-btn-secondary" onClick={() => setShowNewCustomerModal(false)}>
                   Cancel
                 </button>
-                <button type="submit" className="pro-btn pro-btn-gold">
-                  <span>Save Client Profile</span>
+                <button type="submit" className="pro-btn pro-btn-gold" disabled={savingAction === 'create-customer'}>
+                  {savingAction === 'create-customer' && <span className="pro-btn-spinner" />}
+                  <span>{savingAction === 'create-customer' ? 'Saving Client Profile...' : 'Save Client Profile'}</span>
                 </button>
               </div>
             </form>
@@ -3941,17 +5214,24 @@ export default function AdminDashboard({ onLogout, onBackToSite, whatsappNumber 
 
                 <div className="pro-form-row">
                   <div className="pro-form-group">
-                    <label className="pro-form-label">Category</label>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                      <label className="pro-form-label" style={{ margin: 0 }}>Category</label>
+                      <button
+                        type="button"
+                        style={{ background: 'none', border: 'none', color: 'var(--adm-primary)', fontSize: '.76rem', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}
+                        onClick={() => setShowNewCategoryModal(true)}
+                      >
+                        + New Category
+                      </button>
+                    </div>
                     <select
                       className="pro-form-select"
                       value={newService.category}
                       onChange={(e) => setNewService({ ...newService, category: e.target.value })}
                     >
-                      <option value="skin">Skin Care</option>
-                      <option value="hair">Hair Care</option>
-                      <option value="nails">Nail Artistry</option>
-                      <option value="bridal">Bridal Artistry</option>
-                      <option value="wellness">Wellness &amp; Waxing</option>
+                      {(siteSettings.serviceCategories || []).map(cat => (
+                        <option key={cat.id} value={cat.id}>{cat.name}</option>
+                      ))}
                     </select>
                   </div>
                   <div className="pro-form-group">
@@ -3987,14 +5267,40 @@ export default function AdminDashboard({ onLogout, onBackToSite, whatsappNumber 
                     onChange={(e) => setNewService({ ...newService, description: e.target.value })}
                   ></textarea>
                 </div>
+
+                <div className="pro-form-group">
+                  <label className="pro-form-label">Treatment Photo (Optional - inherits Category photo if empty)</label>
+                  {(() => {
+                    const catObj = (siteSettings.serviceCategories || []).find(
+                      c => c.id === newService.category || c.id?.toLowerCase() === (newService.category || '').toLowerCase()
+                    );
+                    const fallbackCatImg = catObj?.image || siteSettings.servicesImages?.[newService.category];
+                    return (
+                      <ImageDropzone
+                        previewUrl={newService.image}
+                        fallbackUrl={fallbackCatImg}
+                        fallbackLabel="Using Category Cover Photo"
+                        fallbackHint="Drag & drop custom photo or click to browse"
+                        label="Drag & drop custom treatment photo, or click to browse"
+                        hint="PNG, JPG, or WebP • Leave empty to inherit category photo"
+                        onImageSelected={(dataUrl) => setNewService({ ...newService, image: dataUrl })}
+                        onRemove={() => setNewService({ ...newService, image: '' })}
+                        minHeight={95}
+                        previewHeight={55}
+                        previewWidth={75}
+                      />
+                    );
+                  })()}
+                </div>
               </div>
 
               <div className="pro-modal-footer">
                 <button type="button" className="pro-btn pro-btn-secondary" onClick={() => setShowNewServiceModal(false)}>
                   Cancel
                 </button>
-                <button type="submit" className="pro-btn pro-btn-gold">
-                  <span>Create Service</span>
+                <button type="submit" className="pro-btn pro-btn-gold" disabled={savingAction === 'create-service'}>
+                  {savingAction === 'create-service' && <span className="pro-btn-spinner" />}
+                  <span>{savingAction === 'create-service' ? 'Creating Service...' : 'Create Service'}</span>
                 </button>
               </div>
             </form>
@@ -4049,6 +5355,18 @@ export default function AdminDashboard({ onLogout, onBackToSite, whatsappNumber 
                       onChange={(e) => setEditingService({ ...editingService, dur: e.target.value })}
                     />
                   </div>
+                  <div className="pro-form-group">
+                    <label className="pro-form-label">Category</label>
+                    <select
+                      className="pro-form-select"
+                      value={editingService.category || (siteSettings.serviceCategories?.[0]?.id || 'skin')}
+                      onChange={(e) => setEditingService({ ...editingService, category: e.target.value })}
+                    >
+                      {(siteSettings.serviceCategories || []).map(cat => (
+                        <option key={cat.id} value={cat.id}>{cat.name}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
 
                 <div className="pro-form-group">
@@ -4060,14 +5378,40 @@ export default function AdminDashboard({ onLogout, onBackToSite, whatsappNumber 
                     onChange={(e) => setEditingService({ ...editingService, description: e.target.value })}
                   ></textarea>
                 </div>
+
+                <div className="pro-form-group">
+                  <label className="pro-form-label">Treatment Photo (Optional - inherits Category photo if empty)</label>
+                  {(() => {
+                    const catObj = (siteSettings.serviceCategories || []).find(
+                      c => c.id === editingService.category || c.id?.toLowerCase() === (editingService.category || '').toLowerCase()
+                    );
+                    const fallbackCatImg = catObj?.image || siteSettings.servicesImages?.[editingService.category];
+                    return (
+                      <ImageDropzone
+                        previewUrl={editingService.image}
+                        fallbackUrl={fallbackCatImg}
+                        fallbackLabel="Using Category Cover Photo"
+                        fallbackHint="Drag & drop custom photo or click to browse"
+                        label="Drag & drop treatment photo, or click to browse"
+                        hint="PNG, JPG, or WebP • Leave empty to inherit category photo"
+                        onImageSelected={(dataUrl) => setEditingService({ ...editingService, image: dataUrl })}
+                        onRemove={() => setEditingService({ ...editingService, image: '' })}
+                        minHeight={95}
+                        previewHeight={55}
+                        previewWidth={75}
+                      />
+                    );
+                  })()}
+                </div>
               </div>
 
               <div className="pro-modal-footer">
                 <button type="button" className="pro-btn pro-btn-secondary" onClick={() => setEditingService(null)}>
                   Cancel
                 </button>
-                <button type="submit" className="pro-btn pro-btn-gold">
-                  <span>Save Treatment</span>
+                <button type="submit" className="pro-btn pro-btn-gold" disabled={savingAction === 'edit-service'}>
+                  {savingAction === 'edit-service' && <span className="pro-btn-spinner" />}
+                  <span>{savingAction === 'edit-service' ? 'Saving Treatment...' : 'Save Treatment'}</span>
                 </button>
               </div>
             </form>
@@ -4158,8 +5502,79 @@ export default function AdminDashboard({ onLogout, onBackToSite, whatsappNumber 
                 <button type="button" className="pro-btn pro-btn-secondary" onClick={() => setShowNewReviewModal(false)}>
                   Cancel
                 </button>
-                <button type="submit" className="pro-btn pro-btn-gold">
-                  <span>Save Review</span>
+                <button type="submit" className="pro-btn pro-btn-gold" disabled={savingAction === 'create-review'}>
+                  {savingAction === 'create-review' && <span className="pro-btn-spinner" />}
+                  <span>{savingAction === 'create-review' ? 'Saving Review...' : 'Save Review'}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: ADD CATEGORY */}
+      {showNewCategoryModal && (
+        <div className="pro-modal-backdrop" onClick={() => setShowNewCategoryModal(false)}>
+          <div className="pro-modal-card" onClick={(e) => e.stopPropagation()}>
+            <div className="pro-modal-header">
+              <div>
+                <h3>Add Treatment Category</h3>
+                <p>Create a custom service category with custom title and photography</p>
+              </div>
+              <button className="pro-modal-close" onClick={() => setShowNewCategoryModal(false)}>
+                <X size={16} />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateCategory}>
+              <div className="pro-modal-body">
+                <div className="pro-form-group">
+                  <label className="pro-form-label">Category Name <span className="req">*</span></label>
+                  <input
+                    type="text"
+                    required
+                    className="pro-input"
+                    placeholder="e.g. Body Spa & Massage"
+                    value={newCategoryForm.name}
+                    onChange={(e) => setNewCategoryForm({ ...newCategoryForm, name: e.target.value })}
+                  />
+                  <span style={{ fontSize: '.74rem', color: 'var(--adm-text-secondary)', marginTop: 4, display: 'block' }}>
+                    Title displayed in the website service menu &amp; booking portal
+                  </span>
+                </div>
+
+                <div className="pro-form-group">
+                  <label className="pro-form-label">Description (Optional)</label>
+                  <textarea
+                    rows="2"
+                    className="pro-textarea"
+                    placeholder="Short summary of treatments in this category..."
+                    value={newCategoryForm.description}
+                    onChange={(e) => setNewCategoryForm({ ...newCategoryForm, description: e.target.value })}
+                  ></textarea>
+                </div>
+
+                <div className="pro-form-group">
+                  <label className="pro-form-label">Category Photography</label>
+                  <ImageDropzone
+                    previewUrl={newCategoryForm.image}
+                    onImageSelected={(dataUrl) => setNewCategoryForm({ ...newCategoryForm, image: dataUrl })}
+                    onRemove={() => setNewCategoryForm({ ...newCategoryForm, image: '' })}
+                    label="Drag & drop Category Cover Photo here, or click to browse"
+                    hint="PNG, JPG, or WebP • High resolution landscape recommended"
+                    previewHeight={60}
+                    previewWidth={80}
+                  />
+                </div>
+              </div>
+
+              <div className="pro-modal-footer">
+                <button type="button" className="pro-btn pro-btn-secondary" onClick={() => setShowNewCategoryModal(false)}>
+                  Cancel
+                </button>
+                <button type="submit" className="pro-btn pro-btn-gold" disabled={savingAction === 'create-category'}>
+                  {savingAction === 'create-category' && <span className="pro-btn-spinner" />}
+                  <span>{savingAction === 'create-category' ? 'Creating Category...' : 'Create Category'}</span>
                 </button>
               </div>
             </form>

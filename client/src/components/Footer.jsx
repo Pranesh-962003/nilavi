@@ -100,7 +100,7 @@ export default function Footer({ onNavigate, logoText = 'நிலவி', logoI
               </div>
               <div className="footer-info-row">
                 <Phone size={15} className="info-icon" />
-                <span>+91 99999 99999</span>
+                <span>+91 63836 43060</span>
               </div>
               <div className="footer-info-row">
                 <Mail size={15} className="info-icon" />

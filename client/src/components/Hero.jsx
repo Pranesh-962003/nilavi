@@ -4,7 +4,7 @@ import WhatsAppIcon from './WhatsAppIcon';
 import { generalEnquiryMessage, waLink } from '../lib/whatsapp';
 
 export default function Hero({
-  whatsappNumber = '919999999999',
+  whatsappNumber = import.meta.env.VITE_WHATSAPP_NUMBER || '916383643060',
   heroImageUrl = 'https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?auto=format&fit=crop&w=1200&q=85',
   heroTagline = 'Aesthetics and beauty studio, Chennai',
   heroTitle = 'Soft light for skin, hair and nails.',

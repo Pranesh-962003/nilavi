@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar } from 'lucide-react';
 import SvgDefs from './components/SvgDefs';
+import LoadingScreen from './components/LoadingScreen';
 import Header from './components/Header';
 import Hero from './components/Hero';
 import Marquee from './components/Marquee';
@@ -34,41 +35,62 @@ export default function App() {
   // The admin is only signed in once the server confirms the stored session token
   const [adminUser, setAdminUser] = useState(null);
   const [authChecked, setAuthChecked] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    verifyAdminSession().then(user => {
-      if (cancelled) return;
-      setAdminUser(user);
-      setAuthChecked(true);
-    });
-    // Any admin request answered with 401 drops back to the sign-in screen
-    onUnauthorized(() => setAdminUser(null));
-    return () => {
-      cancelled = true;
-      onUnauthorized(null);
-    };
-  }, []);
-
   const [siteSettings, setSiteSettings] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   // Studio WhatsApp configuration
-  const WHATSAPP_NUMBER = '919999999999';
+  const WHATSAPP_NUMBER = import.meta.env.VITE_WHATSAPP_NUMBER || '916383643060';
 
   // Load site settings (custom logo, hero image, service images)
   const fetchSettings = () => {
-    fetch('/api/settings')
+    return fetch('/api/settings')
       .then(res => res.json())
       .then(data => {
         if (data.success && data.data) {
           setSiteSettings(data.data);
         }
+        return data;
       })
-      .catch(() => {});
+      .catch(() => null);
   };
 
+  // Initial Full-Application Data Preloading with Preloader Sync
   useEffect(() => {
-    fetchSettings();
+    let cancelled = false;
+
+    // Minimum visual display duration for the luxury lipstick reveal animation (1.8s)
+    const minTimer = new Promise(resolve => setTimeout(resolve, 1800));
+    // Maximum safety cap in case of slow or offline network (5s)
+    const safetyTimer = new Promise(resolve => setTimeout(resolve, 5000));
+
+    const settingsPromise = fetchSettings();
+    const servicesPromise = fetch('/api/services').then(r => r.json()).catch(() => null);
+    const authPromise = verifyAdminSession().then(user => {
+      if (!cancelled) {
+        setAdminUser(user);
+        setAuthChecked(true);
+      }
+      return user;
+    }).catch(() => {
+      if (!cancelled) setAuthChecked(true);
+      return null;
+    });
+
+    // Wait for all initial data to fetch + aesthetic animation reveal timer
+    Promise.race([
+      Promise.all([settingsPromise, servicesPromise, authPromise, minTimer]),
+      safetyTimer
+    ]).finally(() => {
+      if (!cancelled) {
+        setIsLoading(false);
+      }
+    });
+
+    onUnauthorized(() => setAdminUser(null));
+    return () => {
+      cancelled = true;
+      onUnauthorized(null);
+    };
   }, []);
 
   // Listen to popstate for browser Back / Forward buttons & Hash changes
@@ -153,6 +175,7 @@ export default function App() {
           <Services
             onNavigate={navigateTo}
             servicesImages={siteSettings?.servicesImages}
+            serviceCategories={siteSettings?.serviceCategories}
           />
           <Ritual />
           <Gallery galleryImages={siteSettings?.galleryImages} />
@@ -217,6 +240,7 @@ export default function App() {
         <ServicesPage
           onNavigate={navigateTo}
           servicesImages={siteSettings?.servicesImages}
+          serviceCategories={siteSettings?.serviceCategories}
         />
       );
     }
@@ -230,11 +254,13 @@ export default function App() {
       );
     }
 
-    if (path === '/book-appointment') {
+    if (path === '/book-appointment' || path === '/book') {
       return (
         <BookingPage
           onNavigate={navigateTo}
           whatsappNumber={WHATSAPP_NUMBER}
+          serviceCategories={siteSettings?.serviceCategories}
+          servicesImages={siteSettings?.servicesImages}
         />
       );
     }
@@ -247,6 +273,12 @@ export default function App() {
     <>
       <SvgDefs />
 
+      {/* Luxury Preloader Screen */}
+      <LoadingScreen
+        isLoading={isLoading}
+        logoSrc={siteSettings?.logoImageUrl || '/nilavi-gold-brand.png'}
+      />
+
       {isAdminRoute ? (
         !authChecked ? null : adminUser ? (
           <AdminDashboard
@@ -258,6 +290,8 @@ export default function App() {
           <AdminLogin
             onLoginSuccess={(user) => setAdminUser(user)}
             onBackToSite={handleBackToSite}
+            logoText={siteSettings?.logoText || 'Nilavi'}
+            logoImageUrl={siteSettings?.logoImageUrl || ''}
           />
         )
       ) : (

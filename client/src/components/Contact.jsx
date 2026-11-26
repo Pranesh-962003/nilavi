@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import WhatsAppIcon from './WhatsAppIcon';
+import { generalEnquiryMessage, contactFormMessage, waLink } from '../lib/whatsapp';
 
-export default function Contact({ onInquiryCreated, whatsappNumber = '919999999999' }) {
+export default function Contact({ onInquiryCreated, whatsappNumber = import.meta.env.VITE_WHATSAPP_NUMBER || '916383643060' }) {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -62,17 +63,21 @@ export default function Contact({ onInquiryCreated, whatsappNumber = '9199999999
         });
         if (onInquiryCreated) onInquiryCreated(data.data);
         setTimeout(() => setSent(false), 6000);
+      } else {
+        setErrors({ form: data.message || 'Unable to send message. Please try again.' });
       }
     } catch (err) {
-      // Graceful fallback
-      setSent(true);
-      setTimeout(() => setSent(false), 6000);
+      setErrors({ form: 'Network error. Please reach us directly on WhatsApp or phone.' });
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const waHref = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent("Hi நிலவி, I'd like to enquire about your services.")}`;
+  const hasFormContent = Boolean(formData.name.trim() || formData.message.trim());
+  const waHref = waLink(
+    whatsappNumber,
+    hasFormContent ? contactFormMessage(formData) : generalEnquiryMessage()
+  );
 
   return (
     <section className="contact" id="contact">
@@ -104,8 +109,8 @@ export default function Contact({ onInquiryCreated, whatsappNumber = '9199999999
                 </svg>
               </span>
               <p>
-                <b>Call</b>
-                <span>+91 99999 99999</span>
+                <b>Call &amp; WhatsApp</b>
+                <span>+91 63836 43060</span>
               </p>
             </div>
 
@@ -206,6 +211,7 @@ export default function Contact({ onInquiryCreated, whatsappNumber = '9199999999
               <label htmlFor="cMsg">Your message</label>
             </div>
             {errors.message && <div className="err">{errors.message}</div>}
+            {errors.form && <div className="err" style={{ textAlign: 'center', marginBottom: '12px' }}>{errors.form}</div>}
 
             <button className="btn btn-gold" type="submit" style={{ width: '100%' }} disabled={isSubmitting}>
               {isSubmitting ? 'Sending...' : 'Send message'}

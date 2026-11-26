@@ -1,69 +1,41 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ArrowRight, Sparkles, Calendar, Clock } from 'lucide-react';
 
-export default function Services({ onSelectService, onNavigate, servicesImages = {} }) {
-  const [activeId, setActiveId] = useState('facial');
-
+export default function Services({ onSelectService, onNavigate, servicesImages = {}, serviceCategories = [] }) {
   const defaultImages = {
     facial: 'https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?auto=format&fit=crop&w=1000&q=85',
+    skin: 'https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?auto=format&fit=crop&w=1000&q=85',
     hair: 'https://images.unsplash.com/photo-1560869713-7d0a29430803?auto=format&fit=crop&w=1000&q=85',
     nails: 'https://images.unsplash.com/photo-1632345031435-8727f6897d53?auto=format&fit=crop&w=1000&q=85',
     bridal: 'https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?auto=format&fit=crop&w=1000&q=85',
-    wax: 'https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&w=1000&q=85'
+    wax: 'https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&w=1000&q=85',
+    wellness: 'https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&w=1000&q=85'
   };
 
-  const servicesList = [
-    {
-      id: 'facial',
-      name: 'Facials and skin care',
-      short: 'Skin Care',
-      image: servicesImages.facial || defaultImages.facial,
-      desc: 'Deep cleansing, gentle enzymatic exfoliation, and targeted botanical hydration designed after a clinical evaluation of your skin barrier.',
-      pricePrefix: 'from',
-      price: '₹1,800',
-      timing: '60 min'
-    },
-    {
-      id: 'hair',
-      name: 'Hair spa and styling',
-      short: 'Hair Therapy',
-      image: servicesImages.hair || defaultImages.hair,
-      desc: 'Precision cuts, gloss tones, keratin smoothing and botanical scalp therapies, finished with an unhurried, luminous salon blow-dry.',
-      pricePrefix: 'from',
-      price: '₹1,500',
-      timing: '90 min'
-    },
-    {
-      id: 'nails',
-      name: 'Manicure and nail art',
-      short: 'Nail Artistry',
-      image: servicesImages.nails || defaultImages.nails,
-      desc: 'Contoured cuticle care, organic hand exfoliation, slow botanical massage, and chip-resistant LED gel polish or custom hand-painted art.',
-      pricePrefix: 'from',
-      price: '₹900',
-      timing: '60 min'
-    },
-    {
-      id: 'bridal',
-      name: 'Bespoke bridal makeup',
-      short: 'Bridal Artistry',
-      image: servicesImages.bridal || defaultImages.bridal,
-      desc: 'Pre-wedding skin preparation, complete trial sessions, waterproof HD makeup, and personalized saree/dupatta draping for your special day.',
-      pricePrefix: 'trial from',
-      price: '₹3,500',
-      timing: '120 min'
-    },
-    {
-      id: 'wax',
-      name: 'Wellness and waxing',
-      short: 'Body Wellness',
-      image: servicesImages.wax || defaultImages.wax,
-      desc: 'Hypoallergenic low-temperature strip waxing, facial threading, and soothing chamomile aloe vera treatment performed with gentle precision.',
-      pricePrefix: 'from',
-      price: '₹300',
-      timing: '30 min'
+  const servicesList = (Array.isArray(serviceCategories) && serviceCategories.length > 0)
+    ? serviceCategories.map(cat => ({
+        id: cat.id,
+        name: cat.name,
+        short: cat.name,
+        image: cat.image || servicesImages[cat.id] || defaultImages[cat.id] || 'https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&w=1000&q=85',
+        desc: cat.description || `Specialized ${cat.name} treatments customized around your personal wellness goals.`,
+        pricePrefix: 'from',
+        price: '₹900',
+        timing: '45 min'
+      }))
+    : [];
+
+  const [activeId, setActiveId] = useState(servicesList[0]?.id || '');
+
+  useEffect(() => {
+    if (servicesList.length > 0 && !servicesList.some(s => s.id === activeId)) {
+      setActiveId(servicesList[0].id);
     }
-  ];
+  }, [servicesList, activeId]);
+
+  if (servicesList.length === 0) {
+    return null;
+  }
 
   const handleActivate = (id) => {
     setActiveId(id);

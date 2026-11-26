@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import Lightbox from './Lightbox';
 
 export default function Gallery({ galleryImages }) {
@@ -84,6 +84,14 @@ export default function Gallery({ galleryImages }) {
     setLightboxIndex(null);
   };
 
+  const galleryCategories = useMemo(() => {
+    const set = new Set(['all']);
+    tiles.forEach(t => {
+      if (t.cat) set.add(t.cat.toLowerCase().trim());
+    });
+    return Array.from(set);
+  }, [tiles]);
+
   return (
     <section className="gallery" id="gallery">
       <div className="wrap">
@@ -98,14 +106,14 @@ export default function Gallery({ galleryImages }) {
         </div>
 
         <div className="filters rv" role="group" aria-label="Filter gallery">
-          {['all', 'skin', 'hair', 'nails', 'bridal'].map((cat) => (
+          {galleryCategories.map((cat) => (
             <button
               key={cat}
               className="chipf"
               aria-pressed={filter === cat}
               onClick={() => setFilter(cat)}
             >
-              {cat.charAt(0).toUpperCase() + cat.slice(1)}
+              {cat === 'all' ? 'All' : cat.charAt(0).toUpperCase() + cat.slice(1)}
             </button>
           ))}
         </div>

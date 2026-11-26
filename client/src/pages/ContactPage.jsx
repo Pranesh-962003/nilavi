@@ -14,7 +14,7 @@ import {
 import WhatsAppIcon from '../components/WhatsAppIcon';
 import { contactFormMessage, generalEnquiryMessage, waLink } from '../lib/whatsapp';
 
-export default function ContactPage({ onNavigate, whatsappNumber = '919999999999' }) {
+export default function ContactPage({ onNavigate, whatsappNumber = import.meta.env.VITE_WHATSAPP_NUMBER || '916383643060' }) {
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
@@ -162,7 +162,7 @@ export default function ContactPage({ onNavigate, whatsappNumber = '919999999999
                   </div>
                   <div className="meta-text-box">
                     <b>Direct Line &amp; WhatsApp</b>
-                    <p>+91 99999 99999</p>
+                    <p>+91 63836 43060</p>
                     <a
                       href={waHref}
                       target="_blank"

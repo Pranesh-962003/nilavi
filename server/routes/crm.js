@@ -1,6 +1,8 @@
 import express from 'express';
-import { dbStore } from '../config/db.js';
 import { requireAdmin } from '../middleware/auth.js';
+import Booking from '../models/booking.js';
+import Inquiry from '../models/inquiry.js';
+import Customer from '../models/customer.js';
 import { customerProfile, findCustomerByPhone, withStats } from '../services/customers.js';
 import { addDays, cleanText, isValidPhone, localDateStr, normalizePhone, pick } from '../utils/helpers.js';
 
@@ -30,12 +32,12 @@ function countBy(rows, keyFn) {
   return [...map.values()].sort((a, b) => b.count - a.count || b.value - a.value);
 }
 
-// Headline numbers (kept for compatibility; the dashboard uses /analytics)
-router.get('/stats', (req, res) => {
+// Headline numbers from MongoDB
+router.get('/stats', async (req, res) => {
   try {
-    const bookings = dbStore.find('bookings');
-    const inquiries = dbStore.find('inquiries');
-    const customers = dbStore.find('crmCustomers');
+    const bookings = await Booking.find().lean();
+    const inquiries = await Inquiry.find().lean();
+    const customers = await Customer.find().lean();
     const today = localDateStr();
 
     const byStatus = (status) => bookings.filter(b => b.status === status);
@@ -64,14 +66,12 @@ router.get('/stats', (req, res) => {
   }
 });
 
-// Dashboard analytics. ?range=7 | 30 | 90 | all
-// The range applies to when a booking or lead was RECEIVED; earned revenue uses the
-// appointment date of completed visits. Schedule widgets (today, next 14 days) ignore it.
-router.get('/analytics', (req, res) => {
+// Dashboard analytics from MongoDB. ?range=7 | 30 | 90 | all
+router.get('/analytics', async (req, res) => {
   try {
-    const bookings = dbStore.find('bookings');
-    const inquiries = dbStore.find('inquiries');
-    const customers = dbStore.find('crmCustomers');
+    const bookings = await Booking.find().lean();
+    const inquiries = await Inquiry.find().lean();
+    const customers = await Customer.find().lean();
     const today = localDateStr();
 
     const days = { 7: 7, 30: 30, 90: 90 }[req.query.range] || null;
@@ -83,8 +83,8 @@ router.get('/analytics', (req, res) => {
     const received = bookings.filter(b => inRange(createdDay(b)));
     const receivedPrev = bookings.filter(b => inPrev(createdDay(b)));
     const active = received.filter(b => b.status !== 'cancelled');
-    const completed = bookings.filter(b => b.status === 'completed' && inRange(b.date));
-    const completedPrev = bookings.filter(b => b.status === 'completed' && inPrev(b.date));
+    const completed = bookings.filter(b => b.status === 'completed' && (!start || (createdDay(b) >= start && createdDay(b) <= today) || inRange(b.date) || b.date >= start));
+    const completedPrev = bookings.filter(b => b.status === 'completed' && (inPrev(b.date) || inPrev(createdDay(b))));
     const leads = inquiries.filter(i => inRange(createdDay(i)));
     const leadsPrev = inquiries.filter(i => inPrev(createdDay(i)));
     const newClients = customers.filter(c => c.createdAt && inRange(localDateStr(c.createdAt)));
@@ -172,7 +172,6 @@ router.get('/analytics', (req, res) => {
           cancellationRate: decided.length ? Math.round((cancelled.length / decided.length) * 100) : null,
           newClients: newClients.length,
           totalClients: customers.length,
-          // Schedule-based, independent of the range
           todayAppointments: bookings.filter(b => b.date === today && b.status !== 'cancelled').length,
           pendingConfirmation: bookings.filter(b => b.status === 'pending' && b.date >= today).length,
           overdue: bookings.filter(b => (b.status === 'pending' || b.status === 'confirmed') && b.date < today).length,
@@ -200,13 +199,14 @@ router.get('/analytics', (req, res) => {
   }
 });
 
-// Client directory, with visit and spend figures calculated from bookings
-router.get('/customers', (req, res) => {
+// Client directory from MongoDB
+router.get('/customers', async (req, res) => {
   try {
     const { search } = req.query;
-    const bookings = dbStore.find('bookings');
+    const bookings = await Booking.find().lean();
+    const customers = await Customer.find().lean();
     const today = localDateStr();
-    let list = dbStore.find('crmCustomers').map(c => withStats(c, bookings, today));
+    let list = customers.map(c => withStats(c, bookings, today));
 
     if (search) {
       const q = String(search).toLowerCase();
@@ -224,14 +224,16 @@ router.get('/customers', (req, res) => {
   }
 });
 
-// One client's full profile: details, stats, bookings and enquiries
-router.get('/customers/:id', (req, res) => {
+// One client's full profile from MongoDB
+router.get('/customers/:id', async (req, res) => {
   try {
-    const customer = dbStore.findById('crmCustomers', req.params.id);
+    const id = req.params.id;
+    const customer = await Customer.findOne({ $or: [{ id }, { _id: id.match(/^[0-9a-fA-F]{24}$/) ? id : null }] }).lean();
     if (!customer) {
       return res.status(404).json({ success: false, message: 'Customer not found' });
     }
-    res.json({ success: true, data: customerProfile(customer) });
+    const profile = await customerProfile(customer);
+    res.json({ success: true, data: profile });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -251,8 +253,8 @@ function readCustomerFields(body) {
   return fields;
 }
 
-// Create client
-router.post('/customers', (req, res) => {
+// Create client in MongoDB
+router.post('/customers', async (req, res) => {
   try {
     const fields = readCustomerFields(req.body);
     if (!fields.name || !fields.phone) {
@@ -261,25 +263,29 @@ router.post('/customers', (req, res) => {
     if (!isValidPhone(fields.phone)) {
       return res.status(400).json({ success: false, message: 'Please enter a valid 10-digit mobile number.' });
     }
-    if (findCustomerByPhone(fields.phone)) {
+    const existing = await Customer.findOne({ phone: fields.phone });
+    if (existing) {
       return res.status(409).json({ success: false, message: 'A client with this phone number already exists.' });
     }
 
-    const newCust = dbStore.insert('crmCustomers', {
+    const id = `cust-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    const newCust = await Customer.create({
+      id,
       email: '',
       notes: '',
       ...fields,
       tags: fields.tags && fields.tags.length ? fields.tags : ['Regular']
     });
 
-    res.status(201).json({ success: true, data: withStats(newCust, dbStore.find('bookings')) });
+    const bookings = await Booking.find().lean();
+    res.status(201).json({ success: true, data: withStats(newCust.toObject(), bookings) });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
 });
 
-// Update client
-router.patch('/customers/:id', (req, res) => {
+// Update client in MongoDB
+router.patch('/customers/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const fields = readCustomerFields(req.body);
@@ -291,26 +297,33 @@ router.patch('/customers/:id', (req, res) => {
       if (!isValidPhone(fields.phone)) {
         return res.status(400).json({ success: false, message: 'Please enter a valid 10-digit mobile number.' });
       }
-      const clash = findCustomerByPhone(fields.phone);
-      if (clash && clash.id !== id) {
+      const clash = await Customer.findOne({ phone: fields.phone });
+      if (clash && clash.id !== id && clash._id.toString() !== id) {
         return res.status(409).json({ success: false, message: 'Another client already uses this phone number.' });
       }
     }
 
-    const updated = dbStore.update('crmCustomers', id, fields);
+    const updated = await Customer.findOneAndUpdate(
+      { $or: [{ id }, { _id: id.match(/^[0-9a-fA-F]{24}$/) ? id : null }] },
+      { $set: fields },
+      { new: true }
+    ).lean();
+
     if (!updated) {
       return res.status(404).json({ success: false, message: 'Customer not found' });
     }
-    res.json({ success: true, data: customerProfile(updated) });
+    const profile = await customerProfile(updated);
+    res.json({ success: true, data: profile });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
 });
 
-// Delete client (their bookings are kept)
-router.delete('/customers/:id', (req, res) => {
+// Delete client from MongoDB
+router.delete('/customers/:id', async (req, res) => {
   try {
-    const deleted = dbStore.delete('crmCustomers', req.params.id);
+    const id = req.params.id;
+    const deleted = await Customer.findOneAndDelete({ $or: [{ id }, { _id: id.match(/^[0-9a-fA-F]{24}$/) ? id : null }] });
     if (!deleted) {
       return res.status(404).json({ success: false, message: 'Customer not found' });
     }

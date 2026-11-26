@@ -1,7 +1,8 @@
 import express from 'express';
-import { dbStore } from '../config/db.js';
 import { attachAdmin, requireAdmin } from '../middleware/auth.js';
 import { upsertCustomer } from '../services/customers.js';
+import Booking from '../models/booking.js';
+import Service from '../models/service.js';
 import {
   BOOKING_STATUSES,
   cleanText,
@@ -14,14 +15,27 @@ import {
 
 const router = express.Router();
 
-const activeOn = (date) =>
-  dbStore.find('bookings', b => b.date === date && b.status !== 'cancelled');
+const activeOn = async (date) => {
+  try {
+    const list = await Booking.find({ date, status: { $ne: 'cancelled' } }).lean();
+    return list || [];
+  } catch {
+    return [];
+  }
+};
 
-function resolveService({ serviceId, serviceName, servicePrice }) {
-  const services = dbStore.find('services');
-  const match =
-    (serviceId && services.find(s => s.id === serviceId)) ||
-    (serviceName && services.find(s => s.name.toLowerCase() === String(serviceName).toLowerCase()));
+async function resolveService({ serviceId, serviceName, servicePrice }) {
+  let match = null;
+  try {
+    if (serviceId && serviceId !== 'custom') {
+      match = await Service.findOne({ id: serviceId }).lean();
+    }
+    if (!match && serviceName) {
+      match = await Service.findOne({ name: new RegExp(`^${serviceName}$`, 'i') }).lean();
+    }
+  } catch {
+    // fallback
+  }
 
   if (match) {
     return {
@@ -39,41 +53,42 @@ function resolveService({ serviceId, serviceName, servicePrice }) {
   };
 }
 
-// PUBLIC: time slots already taken on a date, so the booking page can disable them
-router.get('/availability', (req, res) => {
+// PUBLIC: time slots already taken on a date
+router.get('/availability', async (req, res) => {
   const { date } = req.query;
   if (!isDateStr(date)) {
     return res.status(400).json({ success: false, message: 'A date in YYYY-MM-DD format is required.' });
   }
-  res.json({ success: true, date, taken: activeOn(date).map(b => b.timeSlot) });
+  const activeBookings = await activeOn(date);
+  res.json({ success: true, date, taken: activeBookings.map(b => b.timeSlot) });
 });
 
 // ADMIN: all bookings with optional filters: status, date, search
-router.get('/', requireAdmin, (req, res) => {
+router.get('/', requireAdmin, async (req, res) => {
   try {
     const { status, date, search } = req.query;
-    let list = dbStore.find('bookings');
+    const query = {};
 
-    if (status && status !== 'all') list = list.filter(b => b.status === status);
-    if (date) list = list.filter(b => b.date === date);
+    if (status && status !== 'all') query.status = status;
+    if (date) query.date = date;
     if (search) {
-      const q = String(search).toLowerCase();
-      list = list.filter(b =>
-        (b.customerName && b.customerName.toLowerCase().includes(q)) ||
-        (b.customerPhone && b.customerPhone.includes(q)) ||
-        (b.serviceName && b.serviceName.toLowerCase().includes(q))
-      );
+      const q = String(search).trim();
+      query.$or = [
+        { customerName: { $regex: q, $options: 'i' } },
+        { customerPhone: { $regex: q, $options: 'i' } },
+        { serviceName: { $regex: q, $options: 'i' } }
+      ];
     }
 
-    list.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-    res.json({ success: true, count: list.length, data: list });
+    let list = await Booking.find(query).sort({ createdAt: -1 }).lean();
+    res.json({ success: true, count: (list || []).length, data: list || [] });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
 });
 
-// PUBLIC (website) or ADMIN (walk-in / phone): create a booking
-router.post('/', attachAdmin, (req, res) => {
+// PUBLIC (website) or ADMIN (walk-in / phone): create a booking in MongoDB
+router.post('/', attachAdmin, async (req, res) => {
   try {
     const isAdmin = Boolean(req.admin);
     const customerName = cleanText(req.body.customerName, 120);
@@ -94,19 +109,21 @@ router.post('/', attachAdmin, (req, res) => {
     if (!isAdmin && date < localDateStr()) {
       return res.status(400).json({ success: false, message: 'That date has already passed. Please choose another day.' });
     }
-    if (activeOn(date).some(b => b.timeSlot === timeSlot)) {
+
+    const currentActive = await activeOn(date);
+    if (currentActive.some(b => b.timeSlot === timeSlot)) {
       return res.status(409).json({
         success: false,
         message: `The ${timeSlot} slot on ${date} has just been taken. Please choose another time.`
       });
     }
 
-    const service = resolveService(req.body);
-
-    // Website bookings always start as pending; staff can set the status directly
+    const service = await resolveService(req.body);
     const status = isAdmin && BOOKING_STATUSES.includes(req.body.status) ? req.body.status : 'pending';
+    const id = `bk-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
-    const newBooking = dbStore.insert('bookings', {
+    const newBookingData = {
+      id,
       customerName,
       customerPhone,
       customerEmail,
@@ -114,12 +131,11 @@ router.post('/', attachAdmin, (req, res) => {
       date,
       timeSlot: cleanText(timeSlot, 20),
       notes,
-      status,
-      source: isAdmin ? 'admin' : 'website',
-      whatsappSent: false
-    });
+      status
+    };
 
-    upsertCustomer({ name: customerName, phone: customerPhone, email: customerEmail });
+    const newBooking = await Booking.create(newBookingData);
+    await upsertCustomer({ name: customerName, phone: customerPhone, email: customerEmail });
 
     res.status(201).json({ success: true, data: newBooking });
   } catch (err) {
@@ -127,18 +143,18 @@ router.post('/', attachAdmin, (req, res) => {
   }
 });
 
-// ADMIN: update status, schedule, notes or details
-router.patch('/:id', requireAdmin, (req, res) => {
+// ADMIN: update status, schedule, notes or details in MongoDB
+router.patch('/:id', requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const existing = dbStore.findById('bookings', id);
+    let existing = await Booking.findOne({ id }).lean();
     if (!existing) {
       return res.status(404).json({ success: false, message: 'Booking not found' });
     }
 
     const updates = pick(req.body, [
       'customerName', 'customerPhone', 'customerEmail', 'serviceId', 'serviceName',
-      'servicePrice', 'date', 'timeSlot', 'notes', 'status', 'whatsappSent'
+      'servicePrice', 'date', 'timeSlot', 'notes', 'status'
     ]);
 
     if (updates.status && !BOOKING_STATUSES.includes(updates.status)) {
@@ -155,30 +171,32 @@ router.patch('/:id', requireAdmin, (req, res) => {
     }
     if (updates.servicePrice !== undefined) updates.servicePrice = Number(updates.servicePrice) || 0;
 
-    // Rescheduling must not collide with another active booking
     const nextDate = updates.date || existing.date;
     const nextSlot = updates.timeSlot || existing.timeSlot;
     const nextStatus = updates.status || existing.status;
     const moved = nextDate !== existing.date || nextSlot !== existing.timeSlot;
-    if (moved && nextStatus !== 'cancelled' && activeOn(nextDate).some(b => b.id !== id && b.timeSlot === nextSlot)) {
-      return res.status(409).json({ success: false, message: `Another appointment already holds ${nextSlot} on ${nextDate}.` });
+
+    if (moved && nextStatus !== 'cancelled') {
+      const activeBookings = await activeOn(nextDate);
+      if (activeBookings.some(b => b.id !== id && b.timeSlot === nextSlot)) {
+        return res.status(409).json({ success: false, message: `Another appointment already holds ${nextSlot} on ${nextDate}.` });
+      }
     }
 
-    if (updates.status === 'completed' && existing.status !== 'completed') {
-      updates.completedAt = new Date().toISOString();
-    }
+    const updated = await Booking.findOneAndUpdate({ id }, { $set: updates }, { new: true }).lean();
 
-    const updated = dbStore.update('bookings', id, updates);
     res.json({ success: true, data: updated });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
 });
 
-// ADMIN: delete booking
-router.delete('/:id', requireAdmin, (req, res) => {
+// ADMIN: delete booking from MongoDB
+router.delete('/:id', requireAdmin, async (req, res) => {
   try {
-    const deleted = dbStore.delete('bookings', req.params.id);
+    const { id } = req.params;
+    const deleted = await Booking.findOneAndDelete({ id });
+
     if (!deleted) {
       return res.status(404).json({ success: false, message: 'Booking not found' });
     }

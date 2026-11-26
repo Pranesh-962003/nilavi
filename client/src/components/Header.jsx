@@ -87,7 +87,7 @@ export default function Header({
           <span className="topbar-gem" aria-hidden="true" />
           <span className="topbar-keep">Private studio sessions · Tambaram, Chennai</span>
           <span className="topbar-gem" aria-hidden="true" />
-          <span>+91 99999 99999</span>
+          <span>+91 63836 43060</span>
         </div>
       </div>
 
@@ -184,11 +184,20 @@ export default function Header({
       <div className="mobile-menu" id="mobile-menu" role="dialog" aria-modal="true" aria-label="Site navigation">
         <div className="mobile-menu-head">
           <span className="mobile-menu-brand">
-            <span className="header-brand-crest">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M20.5 14.6A8.6 8.6 0 0 1 9.4 3.5a8.6 8.6 0 1 0 11.1 11.1z" />
-              </svg>
-            </span>
+            {logoImageUrl ? (
+              <img
+                src={logoImageUrl}
+                alt={logoText}
+                className="header-custom-logo"
+                style={{ maxHeight: 32, maxWidth: 100, objectFit: 'contain' }}
+              />
+            ) : (
+              <span className="header-brand-crest">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M20.5 14.6A8.6 8.6 0 0 1 9.4 3.5a8.6 8.6 0 1 0 11.1 11.1z" />
+                </svg>
+              </span>
+            )}
             {logoText}
           </span>
           <button

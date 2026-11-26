@@ -1,38 +1,44 @@
 import express from 'express';
-import { dbStore } from '../config/db.js';
 import { findSession, readBearerToken, requireAdmin } from '../middleware/auth.js';
+import Review from '../models/review.js';
 import { pick } from '../utils/helpers.js';
 
 const router = express.Router();
 
-// GET all reviews (or only approved)
-router.get('/', (req, res) => {
+// GET all reviews from MongoDB (or only approved)
+router.get('/', async (req, res) => {
   try {
     const { all } = req.query;
-    let list = dbStore.find('reviews');
+    let query = {};
     // Unapproved reviews are only visible to signed-in staff
     if (!all || !findSession(readBearerToken(req))) {
-      list = list.filter(r => r.approved !== false);
+      query = { approved: { $ne: false } };
     }
+    const list = await Review.find(query).sort({ createdAt: -1 }).lean();
     res.json({ success: true, count: list.length, data: list });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
 });
 
-// POST new review
-router.post('/', requireAdmin, (req, res) => {
+// POST new review to MongoDB
+router.post('/', requireAdmin, async (req, res) => {
   try {
     const { name, service, stars, quote, avatarInitial } = req.body;
     if (!name || !quote) {
       return res.status(400).json({ success: false, message: 'Name and quote are required' });
     }
 
-    const newRev = dbStore.insert('reviews', {
+    const id = `rev-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    const newRev = await Review.create({
+      id,
       name,
+      clientName: name,
       service: service || 'General Service',
       stars: Number(stars) || 5,
+      rating: Number(stars) || 5,
       quote,
+      comment: quote,
       avatarInitial: avatarInitial || name[0]?.toUpperCase() || 'N',
       featured: Boolean(req.body.featured),
       approved: true
@@ -44,11 +50,21 @@ router.post('/', requireAdmin, (req, res) => {
   }
 });
 
-// PATCH review
-router.patch('/:id', requireAdmin, (req, res) => {
+// PATCH review in MongoDB
+router.patch('/:id', requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const updated = dbStore.update('reviews', id, pick(req.body, ['name', 'service', 'stars', 'quote', 'avatarInitial', 'featured', 'approved']));
+    const updates = pick(req.body, ['name', 'service', 'stars', 'quote', 'avatarInitial', 'featured', 'approved']);
+    if (updates.name) updates.clientName = updates.name;
+    if (updates.stars) updates.rating = updates.stars;
+    if (updates.quote) updates.comment = updates.quote;
+
+    const updated = await Review.findOneAndUpdate(
+      { $or: [{ id }, { _id: id.match(/^[0-9a-fA-F]{24}$/) ? id : null }] },
+      { $set: updates },
+      { new: true }
+    );
+
     if (!updated) {
       return res.status(404).json({ success: false, message: 'Review not found' });
     }
@@ -58,11 +74,11 @@ router.patch('/:id', requireAdmin, (req, res) => {
   }
 });
 
-// DELETE review
-router.delete('/:id', requireAdmin, (req, res) => {
+// DELETE review from MongoDB
+router.delete('/:id', requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const deleted = dbStore.delete('reviews', id);
+    const deleted = await Review.findOneAndDelete({ $or: [{ id }, { _id: id.match(/^[0-9a-fA-F]{24}$/) ? id : null }] });
     if (!deleted) {
       return res.status(404).json({ success: false, message: 'Review not found' });
     }
@@ -73,4 +89,3 @@ router.delete('/:id', requireAdmin, (req, res) => {
 });
 
 export default router;
-
