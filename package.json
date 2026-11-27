@@ -28,6 +28,9 @@
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^8.9.5"
   },
+  "overrides": {
+    "jose": "4.15.9"
+  },
   "keywords": [
     "mern",
     "nilavi",
