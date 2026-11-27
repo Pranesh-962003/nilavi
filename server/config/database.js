@@ -33,11 +33,14 @@ export const connectdb = async () => {
   try {
     mongoose.set('strictQuery', false);
     cachedPromise = mongoose.connect(uri, {
-      serverSelectionTimeoutMS: 8000
+      serverSelectionTimeoutMS: 5000,
+      connectTimeoutMS: 5000,
+      socketTimeoutMS: 10000,
+      bufferCommands: false
     }).then(async (conn) => {
       console.log("✅ MongoDB Atlas connected successfully.");
-      // Seed and sync any initial data to MongoDB
-      await seedMongoFromLocalData().catch((err) => {
+      // Seed and sync any initial data to MongoDB asynchronously
+      seedMongoFromLocalData().catch((err) => {
         console.warn("⚠️ Initial seed notice:", err.message);
       });
       return conn;

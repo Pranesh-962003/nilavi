@@ -35,9 +35,11 @@ app.use(cookieParser());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-// Database connection middleware: ensures MongoDB Atlas is connected before handling any API route
-let isDbConnecting = false;
+// Database connection middleware: ensures MongoDB Atlas is connected before handling any data route
 app.use(async (req, res, next) => {
+  if (req.path === '/' || req.path === '/api/health' || req.path === '/health') {
+    return next();
+  }
   try {
     await connectdb();
   } catch (err) {
