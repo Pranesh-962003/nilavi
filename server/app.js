@@ -13,6 +13,7 @@ const __dirname = path.dirname(__filename);
 dotenv.config({ path: path.join(__dirname, '.env') });
 dotenv.config();
 
+import { connectdb } from './config/database.js';
 import authRouter from './routes/auth.js';
 import bookingsRouter from './routes/bookings.js';
 import inquiriesRouter from './routes/inquiries.js';
@@ -23,22 +24,34 @@ import settingsRouter from './routes/settings.js';
 
 const app = express();
 
-// Permissive CORS to allow seamless operation on Vercel preview URLs and custom domains
-app.use(
-  cors({
-    origin: (origin, callback) => {
-      // In production and preview environments on Vercel, allow incoming requests
-      callback(null, true);
-    },
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
-  })
-);
+// Standard permissive CORS for seamless Vercel preview & production deployments
+app.use(cors({
+  origin: true,
+  credentials: true
+}));
 
 app.use(cookieParser());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+
+// Database connection middleware: ensures MongoDB Atlas is connected before handling any API route
+let isDbConnecting = false;
+app.use(async (req, res, next) => {
+  try {
+    await connectdb();
+  } catch (err) {
+    console.error('[Database Middleware Error]', err.message);
+  }
+  next();
+});
+
+// URL normalizer: ensure request paths match our /api route prefixes
+app.use((req, res, next) => {
+  if (req.url && !req.url.startsWith('/api') && req.url !== '/') {
+    req.url = `/api${req.url.startsWith('/') ? '' : '/'}${req.url}`;
+  }
+  next();
+});
 
 // Request logger for visibility
 app.use((req, res, next) => {
