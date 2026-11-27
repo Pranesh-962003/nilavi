@@ -6,10 +6,16 @@
     },
     "server": {
       "root": "server",
-      "entrypoint": "app.js"
+      "framework": "express"
     }
   },
   "rewrites": [
+    {
+      "source": "/api",
+      "destination": {
+        "service": "server"
+      }
+    },
     {
       "source": "/api/(.*)",
       "destination": {
