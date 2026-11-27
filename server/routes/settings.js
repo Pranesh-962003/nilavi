@@ -32,14 +32,15 @@ router.get('/', async (req, res) => {
   try {
     let settings = await Settings.findOne().lean();
     if (!settings) {
-      settings = await Settings.create(defaultSettings);
+      settings = await Settings.create(defaultSettings).catch(() => defaultSettings);
     }
     if (!settings.serviceCategories) {
       settings.serviceCategories = [];
     }
     res.json({ success: true, data: settings });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    console.warn('[Settings GET] Falling back to default settings:', err.message);
+    res.json({ success: true, data: defaultSettings });
   }
 });
 

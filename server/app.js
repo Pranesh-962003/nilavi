@@ -13,6 +13,7 @@ const __dirname = path.dirname(__filename);
 dotenv.config({ path: path.join(__dirname, '.env') });
 dotenv.config();
 
+import mongoose from 'mongoose';
 import { connectdb } from './config/database.js';
 import authRouter from './routes/auth.js';
 import bookingsRouter from './routes/bookings.js';
@@ -75,8 +76,12 @@ app.get('/', (req, res) => {
 });
 
 app.get('/api/health', (req, res) => {
+  const dbState = mongoose.connection ? mongoose.connection.readyState : 0;
+  const dbStatus = dbState === 1 ? 'connected' : dbState === 2 ? 'connecting' : 'disconnected';
   res.json({
     status: 'healthy',
+    database: dbStatus,
+    hasMongoUri: Boolean(process.env.MONGO_URI || process.env.MONGODB_URI),
     studio: 'Nilavi Aesthetics & Beauty Studio',
     timestamp: new Date().toISOString()
   });
