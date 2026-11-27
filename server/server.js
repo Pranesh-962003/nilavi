@@ -9,9 +9,11 @@ dbStore.connect(process.env.MONGO_URI || process.env.MONGODB_URI);
 
 const port = process.env.PORT || 2004;
 
-app.listen(port, () => {
-  console.log(`✨ Nilavi Studio API & CRM running on http://127.0.0.1:${port}`);
-  console.log(`📡 Health check available at http://127.0.0.1:${port}/api/health`);
-});
+if (!process.env.VERCEL) {
+  app.listen(port, () => {
+    console.log(`✨ Nilavi Studio API & CRM running on http://127.0.0.1:${port}`);
+    console.log(`📡 Health check available at http://127.0.0.1:${port}/api/health`);
+  });
+}
 
 export default app;

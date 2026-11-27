@@ -2,7 +2,7 @@ import axios from 'axios';
 import { getAdminToken } from './lib/api';
 
 export const Api = axios.create({
-  baseURL: import.meta.env.VITE_BACKEND_URL || 'http://localhost:2004/api',
+  baseURL: import.meta.env.VITE_BACKEND_URL || '/api',
   withCredentials: true
 });
 
